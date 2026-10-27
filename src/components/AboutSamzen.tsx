@@ -1,7 +1,8 @@
 import React from 'react';
 import { 
   Building2, Globe, ShieldCheck, Sparkles, Award, 
-  TrendingUp, Compass, Cpu, Layers, CheckCircle2, ArrowRight
+  TrendingUp, Compass, Cpu, Layers, CheckCircle2, ArrowRight,
+  Users, Crown, HeartHandshake
 } from 'lucide-react';
 
 interface AboutSamzenProps {
@@ -33,7 +34,7 @@ export default function AboutSamzen({ onLaunchTerminal, onOpenLegal }: AboutSamz
               About the <span className="text-[#00FF87]">Samzen</span> Conglomerate
             </h2>
             <p className="text-sm md:text-base text-slate-200 leading-relaxed font-sans">
-              <strong>Samzen TradeLearn</strong> is the inaugural flagship educational project of <strong className="text-white">Samzen</strong>, a visionary multi-sector conglomerate dedicated to financial intelligence, algorithmic systems, educational technology, and scalable global infrastructure.
+              <strong>Samzen TradeLearn</strong> is the inaugural flagship educational project of <strong className="text-white">Samzen</strong>, a visionary multi-sector conglomerate co-founded by <strong className="text-[#00FF87]">Mr. Samarth Zende</strong> (Founder & CEO) alongside his father, <strong className="text-[#FFD700]">Mr. Vinayak Zende</strong> (Co-Founder), dedicated to financial intelligence, algorithmic systems, educational technology, and scalable global infrastructure.
             </p>
             <p className="text-xs md:text-sm text-slate-400 leading-relaxed">
               Founded on the conviction that financial markets punish the unprepared, Samzen created TradeLearn to bridge the divide between retail ambition and institutional execution. Before risking a single rupee, dollar, or euro in real-world exchanges, traders train in an authentic institutional-grade simulation sandbox powered by live real-time feeds and institutional risk frameworks.
@@ -106,67 +107,159 @@ export default function AboutSamzen({ onLaunchTerminal, onOpenLegal }: AboutSamz
         </div>
       </div>
 
-      {/* Founder & Visionary Section */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#0E1726] via-[#121E31] to-[#0E1726] border border-white/10 p-6 md:p-8 shadow-2xl">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-[#00F0FF]/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          <div className="lg:col-span-5 flex justify-center">
-            <div className="relative group cursor-pointer" onClick={() => setShowFounderModal(true)}>
-              <div className="absolute -inset-1 bg-gradient-to-r from-[#00FF87] to-[#00F0FF] rounded-2xl blur opacity-30 group-hover:opacity-75 transition duration-300"></div>
-              <div className="relative w-64 h-80 rounded-2xl overflow-hidden border-2 border-white/20 bg-[#0A0E17] shadow-2xl">
-                <img
-                  src="/assets/aistudio/Trading_Course_Studio_Portrait_7fadb48f.png"
-                  alt="Samarth Zende - Founder & Chief Architect"
-                  className="w-full h-full object-cover object-top transform group-hover:scale-105 transition duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0E17]/90 via-transparent to-transparent flex items-end p-4">
-                  <div className="text-center w-full">
-                    <span className="text-xs font-mono text-[#00FF87] font-bold block uppercase tracking-wider">Click to Expand Photo</span>
+      {/* Executive Leadership & Co-Founders Showcase */}
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00FF87]/10 border border-[#00FF87]/30 text-[#00FF87] text-xs font-mono font-bold tracking-wider uppercase mb-1">
+              <Sparkles className="w-3.5 h-3.5 text-[#00FF87]" />
+              <span>Executive Leadership & Co-Founders</span>
+            </div>
+            <h3 className="text-2xl md:text-3xl font-serif font-black text-white tracking-tight">
+              The Visionaries Behind <span className="text-[#00FF87]">Samzen</span>
+            </h3>
+          </div>
+          <p className="text-xs font-mono text-slate-400 max-w-sm">
+            Forged through family trust, generational enterprise discipline, and institutional market architecture.
+          </p>
+        </div>
+
+        {/* 2-Column Co-Founders Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* 1. Mr. Samarth Zende - Founder & CEO */}
+          <div className="lg:col-span-7 relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0E1726] via-[#121E31] to-[#0A0E17] border border-[#00FF87]/30 p-6 md:p-8 shadow-2xl flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-72 h-72 bg-[#00FF87]/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-12 gap-6 items-center">
+              <div className="sm:col-span-5 flex justify-center">
+                <div className="relative group cursor-pointer" onClick={() => setShowFounderModal(true)}>
+                  <div className="absolute -inset-1 bg-gradient-to-r from-[#00FF87] to-[#00F0FF] rounded-2xl blur opacity-35 group-hover:opacity-85 transition duration-300"></div>
+                  <div className="relative w-48 h-64 sm:w-52 sm:h-72 rounded-2xl overflow-hidden border-2 border-white/20 bg-[#0A0E17] shadow-2xl">
+                    <img
+                      src="/assets/aistudio/Trading_Course_Studio_Portrait_7fadb48f.png"
+                      alt="Mr. Samarth Zende - Founder & CEO"
+                      className="w-full h-full object-cover object-top transform group-hover:scale-105 transition duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0A0E17]/95 via-[#0A0E17]/20 to-transparent flex items-end p-3">
+                      <div className="text-center w-full">
+                        <span className="text-[10px] font-mono text-[#00FF87] font-bold block uppercase tracking-wider bg-black/60 py-1 rounded-lg border border-[#00FF87]/30">
+                          Click to Expand
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="sm:col-span-7 space-y-3">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#00FF87]/15 border border-[#00FF87]/40 text-[#00FF87] text-[11px] font-mono font-bold uppercase tracking-wider">
+                  <Crown className="w-3 h-3 text-[#00FF87]" />
+                  <span>Founder & CEO</span>
+                </div>
+
+                <h4 className="text-2xl font-serif font-black text-white tracking-tight">
+                  Mr. Samarth Zende
+                </h4>
+                <span className="text-xs font-mono text-[#00F0FF] block font-semibold">
+                  Founder & Chief Executive Officer • Samzen Conglomerate & TradeLearn
+                </span>
+
+                <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                  "Markets are the ultimate crucible where human psychology, institutional liquidity, and mathematical probability intersect. Together with my father, Mr. Vinayak Zende, we forged Samzen TradeLearn to provide ambitious traders with the rigorous education, institutional methodologies, and uncompromised risk frameworks required to conquer the markets rather than fall victim to them."
+                </p>
+
+                <div className="grid grid-cols-2 gap-2 pt-2 text-[11px] font-mono">
+                  <div className="bg-[#0A0E17]/80 border border-white/10 rounded-xl p-2.5">
+                    <span className="text-slate-400 block text-[10px] uppercase">Core Domain</span>
+                    <span className="font-bold text-white">Quantitative & SMC Systems</span>
+                  </div>
+                  <div className="bg-[#0A0E17]/80 border border-white/10 rounded-xl p-2.5">
+                    <span className="text-slate-400 block text-[10px] uppercase">Philosophy</span>
+                    <span className="font-bold text-[#00FF87]">1% Capital Preservation</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="lg:col-span-7 space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00FF87]/10 border border-[#00FF87]/30 text-[#00FF87] text-xs font-mono font-bold tracking-wider uppercase">
-              <Sparkles className="w-3.5 h-3.5 text-[#00FF87]" />
-              <span>Visionary Leadership</span>
+          {/* 2. Mr. Vinayak Zende - Co-Founder (Father of Mr. Samarth Zende) */}
+          <div className="lg:col-span-5 relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0E1726] via-[#1A2333] to-[#0A0E17] border border-[#FFD700]/30 p-6 md:p-8 shadow-2xl flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[#FFD700]/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FFD700]/15 border border-[#FFD700]/40 text-[#FFD700] text-[11px] font-mono font-bold uppercase tracking-wider">
+                  <HeartHandshake className="w-3 h-3 text-[#FFD700]" />
+                  <span>Co-Founder & Father</span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">Samzen Dynasty</span>
+              </div>
+
+              {/* Dignified Avatar / Shield Crest */}
+              <div className="flex items-center gap-4 pt-1">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-[#FFD700]/20 via-[#1E293B] to-[#0A0E17] border-2 border-[#FFD700]/50 flex items-center justify-center shadow-lg shrink-0">
+                  <div className="text-center">
+                    <span className="font-serif font-black text-xl sm:text-2xl text-[#FFD700] block leading-none">VZ</span>
+                    <span className="text-[9px] font-mono text-slate-400 tracking-widest uppercase mt-0.5 block">Co-Founder</span>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-xl sm:text-2xl font-serif font-black text-white tracking-tight">
+                    Mr. Vinayak Zende
+                  </h4>
+                  <span className="text-xs font-mono text-[#FFD700] block font-semibold">
+                    Co-Founder, Samzen Conglomerate
+                  </span>
+                  <p className="text-[11px] font-mono text-slate-300 mt-0.5">
+                    Father of Founder & CEO, Mr. Samarth Zende
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-[#0A0E17]/80 border border-white/10 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-mono text-[#FFD700] font-bold uppercase">
+                  <Award className="w-4 h-4" />
+                  <span>Foundational Mentorship & Governance</span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                  As Co-Founder of the Samzen Conglomerate and father to Mr. Samarth Zende, <strong>Mr. Vinayak Zende</strong> provides the bedrock of strategic enterprise governance, generational values, capital discipline, and patient compounding. His seasoned perspective ensures Samzen's ventures remain ethically uncompromised and structurally sound.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-[11px] font-mono pt-1">
+                <div className="bg-[#0A0E17]/60 border border-white/5 rounded-xl p-2.5">
+                  <span className="text-slate-400 block text-[10px] uppercase">Corporate Role</span>
+                  <span className="font-bold text-white">Co-Founder & Senior Advisor</span>
+                </div>
+                <div className="bg-[#0A0E17]/60 border border-white/5 rounded-xl p-2.5">
+                  <span className="text-slate-400 block text-[10px] uppercase">Generational Anchor</span>
+                  <span className="font-bold text-[#FFD700]">Father & Co-Architect</span>
+                </div>
+              </div>
             </div>
 
-            <h3 className="text-2xl md:text-3xl font-serif font-black text-white tracking-tight">
-              Samarth Zende
-            </h3>
-            <span className="text-sm font-mono text-[#00F0FF] block font-semibold">
-              Founder & CEO, Samzen Conglomerate & Samzen TradeLearn
-            </span>
-
-            <p className="text-sm text-slate-300 leading-relaxed font-sans">
-              "Markets are not random chaos; they are the ultimate crucible where human psychology, institutional liquidity, and mathematical probability intersect. I founded Samzen TradeLearn to provide ambitious traders with the rigorous education, institutional methodologies, and uncompromised risk frameworks required to conquer the markets rather than fall victim to them."
-            </p>
-
-            <div className="grid grid-cols-2 gap-4 pt-2">
-              <div className="bg-[#0A0E17]/80 border border-white/10 rounded-xl p-3">
-                <span className="text-xs font-mono text-slate-400 block">Core Philosophy</span>
-                <span className="text-sm font-bold text-white font-serif">Capital Preservation First</span>
-              </div>
-              <div className="bg-[#0A0E17]/80 border border-white/10 rounded-xl p-3">
-                <span className="text-xs font-mono text-slate-400 block">Mission</span>
-                <span className="text-sm font-bold text-white font-serif">Elite Retail Empowerment</span>
-              </div>
+            <div className="relative z-10 pt-4 mt-4 border-t border-white/10 flex items-center justify-between text-[11px] font-mono text-slate-400">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#FFD700]" />
+                Family-Founded Enterprise
+              </span>
+              <span className="text-slate-500">Global Conglomerate Charter</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Founder Lightbox Modal */}
+      {/* Founder & Co-Founders Lightbox Modal */}
       {showFounderModal && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setShowFounderModal(false)}>
-          <div className="relative max-w-lg w-full bg-[#0E1726] border border-white/20 rounded-3xl p-4 overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-3 px-2">
+          <div className="relative max-w-xl w-full bg-[#0E1726] border border-white/20 rounded-3xl p-5 overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-4 px-1">
               <div>
-                <h4 className="text-base font-serif font-bold text-white">Samarth Zende</h4>
-                <p className="text-xs font-mono text-[#00FF87]">Founder & CEO, Samzen Conglomerate & TradeLearn</p>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#00FF87]/15 border border-[#00FF87]/30 text-[#00FF87] text-[10px] font-mono font-bold uppercase tracking-wider mb-1">
+                  <span>Samzen Executive Leadership</span>
+                </div>
+                <h4 className="text-lg font-serif font-black text-white">Mr. Samarth Zende & Mr. Vinayak Zende</h4>
+                <p className="text-xs font-mono text-[#00FF87]">Founder & CEO • Co-Founded with Mr. Vinayak Zende (Father)</p>
               </div>
               <button
                 type="button"
@@ -176,15 +269,28 @@ export default function AboutSamzen({ onLaunchTerminal, onOpenLegal }: AboutSamz
                 ✕
               </button>
             </div>
-            <div className="rounded-2xl overflow-hidden border border-white/10 bg-[#0A0E17] max-h-[75vh] flex items-center justify-center">
+
+            <div className="rounded-2xl overflow-hidden border border-white/10 bg-[#0A0E17] max-h-[60vh] flex items-center justify-center">
               <img
                 src="/assets/aistudio/Trading_Course_Studio_Portrait_7fadb48f.png"
-                alt="Samarth Zende - Full Studio Portrait"
-                className="w-full h-auto max-h-[75vh] object-contain"
+                alt="Mr. Samarth Zende - Founder & CEO"
+                className="w-full h-auto max-h-[60vh] object-contain"
               />
             </div>
-            <div className="mt-3 text-center">
-              <p className="text-xs font-mono text-slate-400">Samzen Global Flagship Leadership • Studio Headquarters</p>
+
+            {/* Co-Founders Attribution Banner inside modal */}
+            <div className="mt-4 p-3 rounded-2xl bg-[#0A0E17] border border-white/10 space-y-1.5 text-xs font-mono">
+              <div className="flex items-center justify-between text-slate-300">
+                <span className="text-white font-bold">Mr. Samarth Zende</span>
+                <span className="text-[#00FF87]">Founder & CEO</span>
+              </div>
+              <div className="flex items-center justify-between text-slate-300 pt-1 border-t border-white/5">
+                <span className="text-white font-bold">Mr. Vinayak Zende</span>
+                <span className="text-[#FFD700]">Co-Founder (Father of Mr. Samarth Zende)</span>
+              </div>
+              <p className="text-[11px] text-slate-400 pt-1">
+                Samzen Conglomerate was co-founded to elevate financial technology and market education under institutional standards of integrity and discipline.
+              </p>
             </div>
           </div>
         </div>

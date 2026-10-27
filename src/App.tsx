@@ -20,7 +20,7 @@ import {
   Clock, ShieldCheck, Wallet, CheckCircle, ChevronRight, HelpCircle, User,
   FileText, Bookmark, Layers, ArrowRight, ArrowLeft, Globe, Shield,
   ExternalLink, Zap, Play, BarChart2, Sun, Moon, Sliders, AlertTriangle,
-  Flame, CheckCircle2, Check
+  Flame, CheckCircle2, Check, Menu, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -90,6 +90,7 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
   const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Audio state
   const [isMuted, setIsMuted] = useState(false);
@@ -511,9 +512,140 @@ export default function App() {
                   <span>Sign In</span>
                 </button>
               )}
+
+              {/* Mobile Hamburger Menu Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className={`lg:hidden p-2.5 rounded-xl border transition cursor-pointer ${
+                  isLight 
+                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200' 
+                    : 'bg-[#121A28] hover:bg-[#1E293B] text-white border-white/15'
+                }`}
+                title="Toggle Mobile Navigation Menu"
+              >
+                {isMobileMenuOpen ? <X className="w-5 h-5 text-rose-400" /> : <Menu className="w-5 h-5 text-[#00FF87]" />}
+              </button>
             </div>
           </div>
         </div>
+
+        {/* Responsive Mobile Navigation Drawer */}
+        {isMobileMenuOpen && (
+          <div className={`lg:hidden border-t px-4 py-6 space-y-4 font-mono text-xs shadow-2xl animate-in slide-in-from-top duration-200 ${
+            isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0A0E17] border-white/15 text-white'
+          }`}>
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <span className="font-bold uppercase tracking-wider text-[#00FF87]">Samzen Navigation Menu</span>
+              <button 
+                type="button"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                onClick={() => {
+                  window.scrollTo({ top: 0, behavior: 'instant' });
+                  setCurrentView('learning');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="flex items-center gap-3 w-full px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold"
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>Learning Dashboard</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setEduTab('courses');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-xl border transition ${
+                  eduTab === 'courses' ? 'border-[#00FF87] bg-[#00FF87]/10 text-[#00FF87]' : 'border-white/10 hover:bg-white/5'
+                }`}
+              >
+                <span>🏛️ Academy Syllabus & Curriculum</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setEduTab('pamphlets');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-xl border transition ${
+                  eduTab === 'pamphlets' ? 'border-[#00FF87] bg-[#00FF87]/10 text-[#00FF87]' : 'border-white/10 hover:bg-white/5'
+                }`}
+              >
+                <span>📚 Strategy Pamphlets & Notes</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setEduTab('faq');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-xl border transition ${
+                  eduTab === 'faq' ? 'border-[#00FF87] bg-[#00FF87]/10 text-[#00FF87]' : 'border-white/10 hover:bg-white/5'
+                }`}
+              >
+                <span>💡 Knowledge Base & FAQ</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setEduTab('about');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-xl border transition ${
+                  eduTab === 'about' ? 'border-[#00FF87] bg-[#00FF87]/10 text-[#00FF87]' : 'border-white/10 hover:bg-white/5'
+                }`}
+              >
+                <span>🛡️ About Samzen & Leadership</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setEduTab('gopro');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-xl border transition ${
+                  eduTab === 'gopro' ? 'border-amber-400 bg-amber-500/10 text-amber-300' : 'border-amber-500/40 hover:bg-amber-500/10'
+                }`}
+              >
+                <Crown className="w-4 h-4 text-amber-400" />
+                <span>Go Pro Elite Membership Plans</span>
+              </button>
+            </div>
+
+            <div className="pt-4 border-t border-white/10 grid grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  setIsSettingsModalOpen(true);
+                  setIsMobileMenuOpen(false);
+                }}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-xs font-bold"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Settings & Theme</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  handleOpenLegal('terms');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-xs font-bold"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Legal & Policy</span>
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* 3. LIVE MARKET MARQUEE STRIP */}
