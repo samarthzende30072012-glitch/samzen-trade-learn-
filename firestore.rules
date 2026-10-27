@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Zero-Trust security rules
+    match /users/{userId} {
+      // User can read and write only their own user profile document
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // User can manage their own trade notes and journal entries
+      match /notes/{noteId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

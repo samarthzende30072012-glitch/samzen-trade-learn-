@@ -1,0 +1,6 @@
+{
+  "name": "Samzen TradeLearn",
+  "description": "SZTrade Learn — An ultra-luxurious, futuristic trading education platform by SAMZEN. Master market structure, technical analysis, and risk management with interactive courses, paper trading sandbox, and Google Docs journal integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

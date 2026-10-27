@@ -1,0 +1,108 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with trading account details, curriculum progress, quiz scores, and balance",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's registered email address"
+        },
+        "name": {
+          "type": "string",
+          "description": "The display name of the user"
+        },
+        "authProvider": {
+          "type": "string",
+          "enum": ["google", "email_otp", "password"],
+          "description": "Method used to authenticate the account"
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Account registration timestamp"
+        },
+        "proTier": {
+          "type": "string",
+          "enum": ["weekly", "monthly", "yearly", "lifetime", null],
+          "description": "Active subscription tier"
+        },
+        "proExpiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Expiration date for pro access"
+        },
+        "demoBalance": {
+          "type": "number",
+          "description": "Paper trading cash balance in INR"
+        },
+        "progress": {
+          "type": "array",
+          "description": "IDs of completed curriculum topics"
+        },
+        "quizScores": {
+          "type": "object",
+          "description": "Mapping of quiz ID to highest score percentage"
+        }
+      },
+      "required": ["email", "joinedAt", "demoBalance"]
+    },
+    "TradeJournalNote": {
+      "title": "TradeJournalNote",
+      "description": "Student trade journal entry, analysis notes, or lesson takeaways",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique note identifier"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the trading journal note"
+        },
+        "content": {
+          "type": "string",
+          "description": "Markdown / text content of the note"
+        },
+        "tags": {
+          "type": "array",
+          "description": "Associated asset or topic tags (e.g., BTC, RSI, Risk)"
+        },
+        "googleDocId": {
+          "type": "string",
+          "description": "Synced Google Doc ID if exported"
+        },
+        "googleDocUrl": {
+          "type": "string",
+          "description": "Direct Google Docs link"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last modified timestamp"
+        }
+      },
+      "required": ["id", "userId", "title", "content", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Stores user profile and account configuration keyed by user UID"
+    },
+    "/users/{userId}/notes/{noteId}": {
+      "schema": {
+        "$ref": "#/entities/TradeJournalNote"
+      },
+      "description": "Private trading journal notes and Google Docs integrations per user"
+    }
+  }
+}
