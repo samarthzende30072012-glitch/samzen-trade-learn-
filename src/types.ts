@@ -38,7 +38,7 @@ export interface TradingAsset {
   high24h?: number;
   low24h?: number;
   volume24h?: number;
-  exchange?: 'NSE' | 'BSE' | 'NASDAQ' | 'NYSE' | 'FOREX' | 'BINANCE';
+  exchange?: 'NSE' | 'BSE' | 'NASDAQ' | 'NYSE' | 'FOREX' | 'BINANCE' | 'COMMODITY';
   sector?: string;
 }
 
@@ -80,6 +80,18 @@ export interface LimitOrder {
   timestamp: string;
 }
 
+export interface PriceAlert {
+  id: string;
+  symbol: string;
+  name: string;
+  targetPrice: number;
+  condition: 'ABOVE' | 'BELOW';
+  createdAt: string;
+  triggered: boolean;
+  triggeredAt?: string;
+  note?: string;
+}
+
 export interface PortfolioHolding {
   symbol: string;
   name: string;
@@ -104,6 +116,7 @@ export interface UserProfile {
   holdings: PortfolioHolding[];
   closedTrades?: ClosedTrade[];
   limitOrders?: LimitOrder[];
+  priceAlerts?: PriceAlert[];
   interest?: 'stocks' | 'forex' | 'crypto';
   knowledgeLevel?: 'beginner' | 'intermediate' | 'advanced';
   learningGoal?: string;

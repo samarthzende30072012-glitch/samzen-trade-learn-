@@ -3,7 +3,8 @@ import { ALL_COURSES } from '../data/courses';
 import { MarketType, CourseLevel, UserProfile, Topic } from '../types';
 import { 
   Lock, BookOpen, CheckCircle, Clock, ChevronRight, Award,
-  Sparkles, ShieldAlert, FastForward, HelpCircle, ArrowLeft
+  Sparkles, ShieldAlert, FastForward, HelpCircle, ArrowLeft,
+  Volume2, Play, Pause, Square
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import QuizSection from './QuizSection';
@@ -44,6 +45,71 @@ export default function CourseViewer({
   // Note font size state
   const [notesFontSize, setNotesFontSize] = useState<number>(18); // default 18px (increased size)
   const [isStudyFullscreen, setIsStudyFullscreen] = useState<boolean>(false);
+
+  // Speech synthesis audio states
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isPausedAudio, setIsPausedAudio] = useState(false);
+
+  const handlePlayAudio = () => {
+    if (!activeTopic) return;
+    if ('speechSynthesis' in window) {
+      if (isPausedAudio) {
+        window.speechSynthesis.resume();
+        setIsPausedAudio(false);
+        setIsPlayingAudio(true);
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const textToRead = `${activeTopic.title}. ${activeTopic.description}. ${activeTopic.content.replace(/\[DIAGRAM:[^\]]+\]/g, '')}`;
+      const utterance = new SpeechSynthesisUtterance(textToRead);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      
+      utterance.onstart = () => {
+        setIsPlayingAudio(true);
+        setIsPausedAudio(false);
+      };
+      utterance.onend = () => {
+        setIsPlayingAudio(false);
+        setIsPausedAudio(false);
+      };
+      utterance.onerror = () => {
+        setIsPlayingAudio(false);
+        setIsPausedAudio(false);
+      };
+
+      window.speechSynthesis.speak(utterance);
+    } else {
+      alert('Speech synthesis not supported in your browser.');
+    }
+  };
+
+  const handlePauseAudio = () => {
+    if ('speechSynthesis' in window) {
+      if (isPlayingAudio) {
+        window.speechSynthesis.pause();
+        setIsPlayingAudio(false);
+        setIsPausedAudio(true);
+      }
+    }
+  };
+
+  const handleStopAudio = () => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      setIsPlayingAudio(false);
+      setIsPausedAudio(false);
+    }
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [activeTopic]);
+
 
   // Personalized Questionnaire State
   const [interest, setInterest] = useState<'stocks' | 'forex' | 'crypto'>(user.interest || 'stocks');
@@ -1289,6 +1355,54 @@ export default function CourseViewer({
                   <p className="text-slate-300 text-xs md:text-sm italic font-serif">
                     {activeTopic.description}
                   </p>
+                </div>
+
+                {/* Listen to Lesson Audio Player Bar */}
+                <div className="bg-[#151D2A] border-2 border-[#05D59E]/40 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[3px_3px_0px_0px_rgba(5,213,158,0.2)]">
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isPlayingAudio ? 'bg-[#05D59E] text-slate-950 animate-pulse' : 'bg-[#0E1726] text-[#05D59E] border border-[#05D59E]/30'}`}>
+                      <Volume2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-mono font-black text-[#05D59E] uppercase tracking-wider block">
+                        🔊 Browser Speech Synthesis Audio Player
+                      </span>
+                      <h4 className="text-xs font-serif font-bold text-white">
+                        Listen to Lesson: {activeTopic.title}
+                      </h4>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    {!isPlayingAudio ? (
+                      <button
+                        onClick={handlePlayAudio}
+                        className="flex-1 sm:flex-none px-4 py-2 bg-[#05D59E] hover:bg-[#04bd8b] text-slate-950 font-mono font-black text-xs uppercase tracking-wider rounded flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>{isPausedAudio ? 'Resume Audio' : 'Listen to Lesson'}</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handlePauseAudio}
+                        className="flex-1 sm:flex-none px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-black text-xs uppercase tracking-wider rounded flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                      >
+                        <Pause className="w-3.5 h-3.5 fill-current" />
+                        <span>Pause Audio</span>
+                      </button>
+                    )}
+
+                    {(isPlayingAudio || isPausedAudio) && (
+                      <button
+                        onClick={handleStopAudio}
+                        className="px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white font-mono font-black text-xs uppercase tracking-wider rounded flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                        title="Stop Audio"
+                      >
+                        <Square className="w-3.5 h-3.5 fill-current" />
+                        <span>Stop</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Option to Choose View Mode */}

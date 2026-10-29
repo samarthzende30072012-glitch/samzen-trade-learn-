@@ -12,6 +12,8 @@ import AboutSamzen from './components/AboutSamzen';
 import LegalPolicies, { PolicyType } from './components/LegalPolicies';
 import SettingsModal from './components/SettingsModal';
 import LearningDashboard from './components/LearningDashboard';
+import FeedbackModal from './components/FeedbackModal';
+import Footer from './components/Footer';
 import { syncUserProfileToFirestore, logoutFirebase } from './services/firebase';
 import { ALL_COURSES } from './data/courses';
 import { marketWS } from './services/marketWebSocket';
@@ -23,6 +25,7 @@ import {
   Flame, CheckCircle2, Check, Menu, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import AIChatbot from './components/AIChatbot';
 
 // Default guest profile if user starts without an account
 const DEFAULT_GUEST_USER: UserProfile = {
@@ -91,6 +94,8 @@ export default function App() {
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
   const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
 
   // Audio state
   const [isMuted, setIsMuted] = useState(false);
@@ -211,7 +216,8 @@ export default function App() {
       <div className={`min-h-screen flex flex-col font-sans transition-colors ${
         isLight ? 'bg-slate-100 text-slate-800' : 'bg-[#070B14] text-white selection:bg-[#00FF87]/20 selection:text-[#00FF87]'
       }`}>
-        <main className="flex-grow p-2 sm:p-4 max-w-[1920px] w-full mx-auto">
+        <AIChatbot theme={theme} />
+      <main className="flex-grow p-2 sm:p-4 max-w-[1920px] w-full mx-auto">
           <PaperTrading
             user={user}
             onUpdateUser={handleUpdateUser}
@@ -273,7 +279,8 @@ export default function App() {
       <div className={`min-h-screen flex flex-col font-sans transition-colors ${
         isLight ? 'bg-slate-50 text-slate-800' : 'bg-[#0A0E17] text-white selection:bg-[#00FF87]/20 selection:text-[#00FF87]'
       }`}>
-        <LearningDashboard
+        <AIChatbot theme={theme} />
+      <LearningDashboard
           user={user}
           onUpdateUser={handleUpdateUser}
           onBackToHome={() => setCurrentView('home')}
@@ -331,6 +338,13 @@ export default function App() {
     <div className={`min-h-screen flex flex-col font-sans transition-colors ${
       isLight ? 'bg-[#F8FAFC] text-slate-800' : 'bg-[#0A0E17] text-white selection:bg-[#00FF87]/20 selection:text-[#00FF87]'
     }`}>
+      <AIChatbot theme={theme} />
+      {/* 0. EDUCATIONAL DISCLAIMER */}
+      <div className={`py-2 px-4 text-center text-[10px] uppercase tracking-widest font-mono border-b ${
+        isLight ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-[#1A1608] border-amber-900/50 text-amber-500'
+      }`}>
+        Disclaimer: Samzen TradeLearn is purely an educational platform and paper trading simulator. It is NOT a SEBI-registered investment advisory or financial service.
+      </div>
       {/* 1. TOP ANNOUNCEMENT STRIP: RHYMING HOOKS */}
       <div className={`border-b py-2 px-4 text-center text-xs font-mono transition-colors ${
         isLight ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-[#0E1726] border-white/10 text-slate-300'
@@ -345,13 +359,9 @@ export default function App() {
             <span className="opacity-40">•</span>
             <span className={isLight ? 'text-blue-700' : 'text-[#00F0FF]'}>"Buy the Course, Master the Market"</span>
           </p>
-          <button
-            type="button"
-            onClick={() => handleOpenLegal('risk')}
-            className="text-[10px] uppercase tracking-wider underline cursor-pointer hidden lg:inline shrink-0 opacity-70 hover:opacity-100"
-          >
-            Risk Disclaimer
-          </button>
+          <span className="text-[11px] font-mono font-bold text-[#00FF87] hidden lg:inline">
+            100% Zero-Lag Simulation Sandbox
+          </span>
         </div>
       </div>
 
@@ -422,7 +432,13 @@ export default function App() {
                 onClick={() => setEduTab('about')}
                 className={`transition cursor-pointer ${eduTab === 'about' ? (isLight ? 'text-emerald-700 font-black' : 'text-[#00FF87] font-black') : 'opacity-70 hover:opacity-100'}`}
               >
-                About Samzen
+                About Us
+              </button>
+              <button 
+                onClick={() => handleOpenLegal('terms')}
+                className={`transition cursor-pointer ${isLight ? 'text-slate-600' : 'text-slate-400'} opacity-70 hover:opacity-100`}
+              >
+                Policy
               </button>
             </nav>
 
@@ -447,7 +463,11 @@ export default function App() {
               {/* Go Pro Plans Header Button */}
               <button
                 type="button"
-                onClick={() => setEduTab('gopro')}
+                onClick={() => {
+                  const el = document.getElementById('pricing-checkout');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  else setEduTab('gopro');
+                }}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-mono font-bold transition cursor-pointer shadow-md ${
                   isLight
                     ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
@@ -609,7 +629,9 @@ export default function App() {
 
               <button
                 onClick={() => {
-                  setEduTab('gopro');
+                  const el = document.getElementById('pricing-checkout');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  else setEduTab('gopro');
                   setIsMobileMenuOpen(false);
                 }}
                 className={`flex items-center gap-3 w-full px-4 py-2.5 rounded-xl border transition ${
@@ -813,99 +835,16 @@ export default function App() {
         </div>
       </section>
 
-      {/* ELITE PAID PLANS & VIP PRICING PREVIEW BANNER */}
-      <section className={`py-12 px-4 sm:px-6 lg:px-8 border-b ${
-        isLight ? 'bg-slate-100/80 border-slate-200' : 'bg-[#0E1726]/60 border-white/10'
+      {/* 5. PRICING & CHECKOUT SECTION (MOVED IMMEDIATELY AFTER MAIN VALUE PROPOSITION) */}
+      <section id="pricing-checkout" className={`py-14 px-4 sm:px-6 lg:px-8 border-b transition-colors ${
+        isLight ? 'bg-slate-100/70 border-slate-200' : 'bg-[#0E1726]/40 border-white/10'
       }`}>
-        <div className="max-w-7xl mx-auto space-y-8">
-          <div className="text-center space-y-3 max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-mono font-bold uppercase tracking-wider">
-              <Crown className="w-3.5 h-3.5 animate-bounce" />
-              <span>Samzen Elite Membership Tiers</span>
-            </div>
-            <h2 className={`text-2xl sm:text-4xl font-serif font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              Unlock Full Curriculum & Gated Downloads
-            </h2>
-            <p className={`text-xs sm:text-sm ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-              Choose your professional membership level to instantly unlock all intermediate & advanced modules, downloadable strategy pamphlets, and infinite paper trading.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { name: 'Weekly Pass', price: 79, period: 'week', desc: 'Quick sprint & strategy test', badge: 'Starter' },
-              { name: 'Monthly Pro', price: 299, period: 'month', desc: 'Most popular for comprehensive study', badge: 'Popular', highlight: true },
-              { name: 'Yearly Pro', price: 499, period: 'year', desc: 'Full 12-month mastery program', badge: 'Best Value' },
-              { name: 'Lifetime Ultimate', price: 799, period: 'lifetime', desc: 'VIP access with zero drip lock forever', badge: 'Ultimate VIP', vip: true },
-            ].map((plan, idx) => (
-              <div 
-                key={idx}
-                className={`rounded-3xl p-6 border flex flex-col justify-between transition transform hover:-translate-y-1 shadow-xl ${
-                  plan.vip 
-                    ? 'bg-gradient-to-br from-amber-500/10 via-[#0A0E17] to-[#0E1726] border-amber-500/50 ring-2 ring-amber-500/20'
-                    : plan.highlight
-                    ? isLight ? 'bg-white border-emerald-300 ring-2 ring-emerald-500/20' : 'bg-[#121A28] border-[#00FF87]/50 ring-2 ring-[#00FF87]/20'
-                    : isLight ? 'bg-white border-slate-200' : 'bg-[#121A28] border-white/10'
-                }`}
-              >
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                      plan.vip ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-white/10 text-slate-300'
-                    }`}>
-                      {plan.badge}
-                    </span>
-                    <Crown className={`w-4 h-4 ${plan.vip ? 'text-amber-400' : 'text-slate-400'}`} />
-                  </div>
-
-                  <div>
-                    <h3 className={`text-lg font-serif font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{plan.name}</h3>
-                    <p className={`text-xs mt-1 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>{plan.desc}</p>
-                  </div>
-
-                  <div className="pt-2">
-                    <span className={`text-3xl font-serif font-black ${plan.vip ? 'text-amber-400' : isLight ? 'text-emerald-700' : 'text-[#00FF87]'}`}>
-                      {formatCurrency(plan.price)}
-                    </span>
-                    <span className={`text-xs font-mono ml-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>/ {plan.period}</span>
-                  </div>
-
-                  <ul className="space-y-2 text-xs font-mono pt-2 border-t border-white/10">
-                    <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>Advanced Modules</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>Gated Downloads</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>Infinite Simulator</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="pt-6">
-                  <button
-                    type="button"
-                    onClick={() => setEduTab('gopro')}
-                    className={`w-full py-3 rounded-xl font-mono font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center justify-center gap-2 ${
-                      plan.vip
-                        ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-black shadow-[0_0_20px_rgba(245,158,11,0.4)]'
-                        : isLight
-                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                        : 'bg-[#00FF87] hover:bg-[#00e577] text-[#0A0E17]'
-                    }`}
-                  >
-                    <span>Unlock Plan Now</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <GoProSection
+          user={user}
+          onUpdateUser={handleUpdateUser}
+          displayCurrency={displayCurrency}
+          formatCurrency={formatCurrency}
+        />
       </section>
 
       {/* 5. EDUCATION NAVIGATION TABS */}
@@ -1010,20 +949,20 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
 
-        {/* 7. COMPREHENSIVE TERMS OF SERVICE & FINANCIAL POLICY SECTION */}
+        {/* 7. SAMZEN INSTITUTIONAL ACADEMY PILLARS */}
         <section className={`border rounded-3xl p-6 sm:p-8 space-y-5 transition-colors ${
           isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
         }`}>
           <div className="flex items-center gap-3 border-b pb-4 border-white/10">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-500">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
               <h3 className={`text-lg font-serif font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                Terms of Service & Strict Financial Policy
+                Samzen Institutional Academy Framework
               </h3>
               <p className={`text-xs font-mono ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                Comprehensive Legal Disclaimer & Zero Liability Clearance
+                The 4 Pillars of Professional Execution & Capital Preservation
               </p>
             </div>
           </div>
@@ -1033,21 +972,10 @@ export default function App() {
               isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#0A0E17] border-white/5'
             }`}>
               <span className={`text-[11px] font-bold uppercase block ${isLight ? 'text-emerald-700' : 'text-[#00FF87]'}`}>
-                1. 100% Educational Simulation Scope
+                1. Continuous Double Auction & Order Book Mechanics
               </span>
-              <p className={isLight ? 'text-slate-600' : 'text-slate-400'}>
-                Samzen TradeLearn is strictly an interactive educational framework and paper trading simulator. All account balances, transactions, and performance metrics are simulated virtual units possessing zero real financial value.
-              </p>
-            </div>
-
-            <div className={`border rounded-2xl p-4 space-y-2 ${
-              isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#0A0E17] border-white/5'
-            }`}>
-              <span className={`text-[11px] font-bold uppercase block ${isLight ? 'text-rose-700' : 'text-[#FF3366]'}`}>
-                2. Severe Risk of Capital Loss in Live Markets
-              </span>
-              <p className={isLight ? 'text-slate-600' : 'text-slate-400'}>
-                Live market trading in equities, options, futures, forex, and cryptocurrencies carries profound financial risk. High paper trading simulation returns do not guarantee profits in live broker accounts.
+              <p className={isLight ? 'text-slate-600' : 'text-slate-300'}>
+                Master the central limit order book, bid-ask spreads, and institutional iceberg accumulation. Decode where algorithmic liquidity pools rest rather than reacting to retail lagging indicators.
               </p>
             </div>
 
@@ -1055,10 +983,21 @@ export default function App() {
               isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#0A0E17] border-white/5'
             }`}>
               <span className={`text-[11px] font-bold uppercase block ${isLight ? 'text-blue-700' : 'text-[#00F0FF]'}`}>
-                3. Complete Absence of Financial Advice
+                2. Non-Negotiable 1% Risk Mathematics
               </span>
-              <p className={isLight ? 'text-slate-600' : 'text-slate-400'}>
-                No content, course lesson, strategy pamphlet, or simulated trade constitutes investment, tax, or legal counsel. Samzen instructors are educational mentors, not SEBI-registered research analysts.
+              <p className={isLight ? 'text-slate-600' : 'text-slate-300'}>
+                Calculate exact position size down to the single unit backward from your stop-loss distance. Structure asymmetric 1:2 and 1:3 payoffs to compound capital across all market environments.
+              </p>
+            </div>
+
+            <div className={`border rounded-2xl p-4 space-y-2 ${
+              isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#0A0E17] border-white/5'
+            }`}>
+              <span className={`text-[11px] font-bold uppercase block ${isLight ? 'text-purple-700' : 'text-purple-400'}`}>
+                3. Smart Money Concepts (SMC) & Liquidity Sweeps
+              </span>
+              <p className={isLight ? 'text-slate-600' : 'text-slate-300'}>
+                Trade where institutions build their positions: Order Blocks, Fair Value Gaps (FVG), Break of Structure (BOS), and false breakout sweep traps (Turtle Soup setups).
               </p>
             </div>
 
@@ -1066,10 +1005,10 @@ export default function App() {
               isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#0A0E17] border-white/5'
             }`}>
               <span className={`text-[11px] font-bold uppercase block ${isLight ? 'text-amber-700' : 'text-[#FFD700]'}`}>
-                4. Total Clearance of Liability
+                4. High-Fidelity Simulation Sandbox
               </span>
-              <p className={isLight ? 'text-slate-600' : 'text-slate-400'}>
-                By accessing this platform, you irrevocably agree that Samzen, its multi-sector conglomerate entities, founders, and developers are cleared of all liability for any personal capital losses incurred on live exchanges.
+              <p className={isLight ? 'text-slate-600' : 'text-slate-300'}>
+                Develop emotional resilience and muscle memory in our proprietary paper trading terminal powered by real-time tick feeds, multi-timeframe charting, and institutional trade journals.
               </p>
             </div>
           </div>
@@ -1259,6 +1198,18 @@ export default function App() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
+
+        <FeedbackModal isOpen={isFeedbackModalOpen} onClose={() => setIsFeedbackModalOpen(false)} theme={theme} />
+        {isAboutModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+            <div className="max-w-4xl w-full my-auto bg-[#0A0E17] p-6 rounded-3xl border border-white/10 relative">
+              <button onClick={() => setIsAboutModalOpen(false)} className="absolute top-4 right-4 text-white hover:text-rose-400 text-xl font-bold">✕</button>
+              <AboutSamzen onLaunchTerminal={() => { setCurrentView('terminal'); setIsAboutModalOpen(false); }} onOpenLegal={() => { handleOpenLegal('risk'); setIsAboutModalOpen(false); }} />
+            </div>
+          </div>
+        )}
+
+        <Footer onOpenAbout={() => setIsAboutModalOpen(true)} onOpenPolicy={() => handleOpenLegal('terms')} />
+      </div>
+    );
+  }

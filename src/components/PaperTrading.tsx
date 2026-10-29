@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TradingAsset, UserProfile, TradePosition, ClosedTrade, LimitOrder } from '../types';
+import { TradingAsset, UserProfile, TradePosition, ClosedTrade, LimitOrder, PriceAlert } from '../types';
 import { 
   SamzenTerminalChart, 
   SamzenTerminalChartRef, 
@@ -20,55 +20,17 @@ import {
   Search, Clock, Volume2, VolumeX, Maximize2, Trash2, Globe, 
   X, Zap, Check, ArrowRight, ArrowLeft, ShieldCheck, Flame, 
   ChevronDown, Sun, Moon, Sliders, List, BarChart3, Layers, 
-  RotateCcw, AlertTriangle, Briefcase, FileText
+  RotateCcw, AlertTriangle, Briefcase, FileText, Plus, Minus,
+  Bell, BellRing, BellOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-// Comprehensive Universal Real-World Asset Directory (Searchable 100%)
-const UNIVERSAL_ASSETS: TradingAsset[] = [
-  // --- US EQUITIES (GLOBAL STOCKS) ---
-  { symbol: 'TSLA', name: 'Tesla Inc.', price: 248.8, change: 3.45, type: 'stock', history: [], exchange: 'NASDAQ', sector: 'Automotive & Clean Tech' },
-  { symbol: 'AAPL', name: 'Apple Inc.', price: 228.4, change: 1.15, type: 'stock', history: [], exchange: 'NASDAQ', sector: 'Consumer Electronics' },
-  { symbol: 'NVDA', name: 'NVIDIA Corporation', price: 138.2, change: 4.82, type: 'stock', history: [], exchange: 'NASDAQ', sector: 'Semiconductors & AI' },
-  { symbol: 'MSFT', name: 'Microsoft Corporation', price: 428.5, change: 0.85, type: 'stock', history: [], exchange: 'NASDAQ', sector: 'Cloud & AI Software' },
-  { symbol: 'AMZN', name: 'Amazon.com Inc.', price: 186.4, change: 1.62, type: 'stock', history: [], exchange: 'NASDAQ', sector: 'E-Commerce & Cloud' },
-  { symbol: 'META', name: 'Meta Platforms Inc.', price: 585.0, change: 2.05, type: 'stock', history: [], exchange: 'NASDAQ', sector: 'Social Media & VR' },
-  { symbol: 'GOOGL', name: 'Alphabet Inc. (Google)', price: 166.8, change: 0.72, type: 'stock', history: [], exchange: 'NASDAQ', sector: 'Search & Cloud' },
+import { UNIVERSAL_ASSETS } from '../data/assetsDatabase';
 
-  // --- INDIAN EQUITIES (NSE / BSE) ---
-  { symbol: 'NIFTY50', name: 'Nifty 50 Benchmark Index', price: 24380.0, change: 0.65, type: 'stock', history: [], exchange: 'NSE', sector: 'Indices' },
-  { symbol: 'BANKNIFTY', name: 'Nifty Bank Index', price: 51240.0, change: 0.92, type: 'stock', history: [], exchange: 'NSE', sector: 'Indices' },
-  { symbol: 'RELIANCE', name: 'Reliance Industries Ltd.', price: 2980.5, change: 1.25, type: 'stock', history: [], exchange: 'NSE', sector: 'Energy & Telecom' },
-  { symbol: 'TCS', name: 'Tata Consultancy Services', price: 3940.0, change: -0.42, type: 'stock', history: [], exchange: 'NSE', sector: 'IT Services' },
-  { symbol: 'HDFCBANK', name: 'HDFC Bank Ltd.', price: 1680.2, change: 0.78, type: 'stock', history: [], exchange: 'NSE', sector: 'Banking' },
-  { symbol: 'INFY', name: 'Infosys Ltd.', price: 1865.0, change: -1.15, type: 'stock', history: [], exchange: 'NSE', sector: 'IT Services' },
-  { symbol: 'ICICIBANK', name: 'ICICI Bank Ltd.', price: 1245.4, change: 1.48, type: 'stock', history: [], exchange: 'NSE', sector: 'Banking' },
-  { symbol: 'TATAMOTORS', name: 'Tata Motors Ltd.', price: 985.0, change: 2.35, type: 'stock', history: [], exchange: 'NSE', sector: 'Automobile' },
-  { symbol: 'SBIN', name: 'State Bank of India', price: 842.5, change: 1.95, type: 'stock', history: [], exchange: 'NSE', sector: 'Banking' },
-  { symbol: 'BHARTIARTL', name: 'Bharti Airtel Ltd.', price: 1420.0, change: 0.52, type: 'stock', history: [], exchange: 'NSE', sector: 'Telecom' },
-  { symbol: 'ITC', name: 'ITC Limited', price: 492.5, change: -0.28, type: 'stock', history: [], exchange: 'NSE', sector: 'FMCG' },
-  { symbol: 'TATASTEEL', name: 'Tata Steel Ltd.', price: 162.0, change: 3.12, type: 'stock', history: [], exchange: 'NSE', sector: 'Metals & Mining' },
-  { symbol: 'ADANIENT', name: 'Adani Enterprises Ltd.', price: 3120.0, change: 2.15, type: 'stock', history: [], exchange: 'NSE', sector: 'Infrastructure' },
+import TerminalTutorial from './TerminalTutorial';
+import MarketHeatmap from './MarketHeatmap';
 
-  // --- CRYPTO (24/7/365 LIVE STREAMED VIA BINANCE WEBSOCKET) ---
-  { symbol: 'BTC/USD', name: 'Bitcoin (Binance Live Stream)', price: 67450.0, change: 2.85, type: 'crypto', history: [], exchange: 'BINANCE', sector: 'Layer 1 Digital Gold' },
-  { symbol: 'ETH/USD', name: 'Ethereum (Binance Live Stream)', price: 3520.4, change: 1.95, type: 'crypto', history: [], exchange: 'BINANCE', sector: 'Smart Contracts' },
-  { symbol: 'SOL/USD', name: 'Solana (Binance Live Stream)', price: 178.6, change: 5.62, type: 'crypto', history: [], exchange: 'BINANCE', sector: 'High Performance L1' },
-  { symbol: 'BNB/USD', name: 'Binance Coin (Binance Live Stream)', price: 594.2, change: 1.15, type: 'crypto', history: [], exchange: 'BINANCE', sector: 'Exchange Ecosystem' },
-  { symbol: 'XRP/USD', name: 'Ripple (Binance Live Stream)', price: 0.542, change: -0.85, type: 'crypto', history: [], exchange: 'BINANCE', sector: 'Cross-Border Payments' },
-  { symbol: 'DOGE/USD', name: 'Dogecoin (Binance Live Stream)', price: 0.142, change: 4.25, type: 'crypto', history: [], exchange: 'BINANCE', sector: 'Memecoin' },
-
-  // --- FOREX & PRECIOUS METALS ---
-  { symbol: 'EUR/USD', name: 'Euro / US Dollar', price: 1.0845, change: 0.12, type: 'forex', history: [], exchange: 'FOREX', sector: 'Major Pair' },
-  { symbol: 'GBP/USD', name: 'British Pound / US Dollar', price: 1.298, change: -0.15, type: 'forex', history: [], exchange: 'FOREX', sector: 'Major Pair' },
-  { symbol: 'USD/JPY', name: 'US Dollar / Japanese Yen', price: 152.4, change: 0.38, type: 'forex', history: [], exchange: 'FOREX', sector: 'Major Pair' },
-  { symbol: 'USD/INR', name: 'US Dollar / Indian Rupee', price: 84.15, change: 0.04, type: 'forex', history: [], exchange: 'FOREX', sector: 'Exotic Cross' },
-  { symbol: 'AUD/USD', name: 'Australian Dollar / US Dollar', price: 0.668, change: 0.45, type: 'forex', history: [], exchange: 'FOREX', sector: 'Commodity Currency' },
-  { symbol: 'USD/CAD', name: 'US Dollar / Canadian Dollar', price: 1.385, change: -0.08, type: 'forex', history: [], exchange: 'FOREX', sector: 'Major Pair' },
-  { symbol: 'XAU/USD', name: 'Spot Gold / US Dollar', price: 2735.5, change: 0.88, type: 'forex', history: [], exchange: 'FOREX', sector: 'Precious Metals' },
-];
-
-export type TerminalPage = 'watchlist' | 'chart' | 'trade' | 'portfolio' | 'history';
+export type TerminalPage = 'watchlist' | 'chart' | 'trade' | 'portfolio' | 'history' | 'alerts' | 'heatmap';
 
 interface PaperTradingProps {
   user: UserProfile;
@@ -97,6 +59,7 @@ export default function PaperTrading({
 
   // Native App-Like Pagination state: 'watchlist' | 'chart' | 'trade' | 'portfolio' | 'history'
   const [activePage, setActivePage] = useState<TerminalPage>('chart');
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('terminal_tutorial_seen'));
 
   // Touch Swipe Gesture Tracking
   const touchStartX = useRef<number | null>(null);
@@ -129,6 +92,8 @@ export default function PaperTrading({
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'INDIAN' | 'US' | 'CRYPTO' | 'FOREX'>('ALL');
+  const [chartSearchQuery, setChartSearchQuery] = useState('');
+  const [isChartSearchOpen, setIsChartSearchOpen] = useState(false);
 
   // Chart configuration
   const [timeframe, setTimeframe] = useState<ChartTimeframe>('15m');
@@ -146,6 +111,75 @@ export default function PaperTrading({
   const [orderMode, setOrderMode] = useState<'MARKET' | 'LIMIT'>('MARKET');
   const [limitPriceInput, setLimitPriceInput] = useState<string>('');
   const [tradeToast, setTradeToast] = useState<{ text: string; isError?: boolean } | null>(null);
+
+  // Price Alerts State & Browser Notification Integration
+  const [priceAlerts, setPriceAlerts] = useState<PriceAlert[]>(() => {
+    try {
+      const saved = localStorage.getItem('samzen_price_alerts');
+      if (saved) return JSON.parse(saved);
+      return user.priceAlerts || [];
+    } catch {
+      return user.priceAlerts || [];
+    }
+  });
+  const priceAlertsRef = useRef<PriceAlert[]>(priceAlerts);
+
+  useEffect(() => {
+    priceAlertsRef.current = priceAlerts;
+    try {
+      localStorage.setItem('samzen_price_alerts', JSON.stringify(priceAlerts));
+    } catch {}
+    if (user.priceAlerts !== priceAlerts) {
+      onUpdateUser({
+        ...user,
+        priceAlerts,
+      });
+    }
+  }, [priceAlerts]);
+
+  // Browser Notification Permission State
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission;
+    }
+    return 'default';
+  });
+
+  const requestNotificationPermission = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setTradeToast({ text: 'Browser notifications are not supported in this browser.', isError: true });
+      return 'denied';
+    }
+    try {
+      const perm = await Notification.requestPermission();
+      setNotificationPermission(perm);
+      if (perm === 'granted') {
+        sounds.playClick();
+        setTradeToast({ text: '🔔 Browser notifications enabled! You will be alerted when target prices hit.' });
+      } else {
+        setTradeToast({ text: 'Notification permission was not granted. In-app audio chimes will still sound.', isError: true });
+      }
+      return perm;
+    } catch (e) {
+      console.warn('Notification permission error:', e);
+      return Notification.permission;
+    }
+  };
+
+  // Price Alert Modal & In-App Toast State
+  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+  const [alertModalAsset, setAlertModalAsset] = useState<TradingAsset>(selectedAsset);
+  const [alertTargetPrice, setAlertTargetPrice] = useState<string>('');
+  const [alertCondition, setAlertCondition] = useState<'ABOVE' | 'BELOW'>('ABOVE');
+  const [alertNote, setAlertNote] = useState<string>('');
+  const [alertToast, setAlertToast] = useState<{
+    id: string;
+    symbol: string;
+    targetPrice: number;
+    currentPrice: number;
+    condition: 'ABOVE' | 'BELOW';
+    note?: string;
+  } | null>(null);
 
   // Capital Deposit / Reset Modal
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
@@ -180,7 +214,7 @@ export default function PaperTrading({
     return () => clearInterval(interval);
   }, [selectedAsset]);
 
-  // Real-time market tick subscription
+  // Real-time market tick subscription & Price Alert Trigger Engine
   useEffect(() => {
     const unsubscribe = marketWS.subscribe((tick: MarketTick) => {
       setAssets((prev) =>
@@ -212,6 +246,58 @@ export default function PaperTrading({
           chartRef.current.updateTick(tick.price);
         }
       }
+
+      // Live Price Alert Evaluation
+      const currentAlerts = priceAlertsRef.current;
+      const triggeredList: PriceAlert[] = [];
+
+      currentAlerts.forEach((alt) => {
+        if (!alt.triggered && alt.symbol === tick.symbol) {
+          const isHit =
+            (alt.condition === 'ABOVE' && tick.price >= alt.targetPrice) ||
+            (alt.condition === 'BELOW' && tick.price <= alt.targetPrice);
+
+          if (isHit) {
+            triggeredList.push(alt);
+
+            // 1. Synthesized audio alert chime
+            sounds.playAlert();
+
+            // 2. Browser native desktop notification
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+              try {
+                new Notification(`🚨 Price Alert: ${alt.symbol} hit ₹${tick.price.toLocaleString()}!`, {
+                  body: `${alt.symbol} crossed your target of ₹${alt.targetPrice.toLocaleString()} (${alt.condition === 'ABOVE' ? 'Risen above' : 'Fallen below'}).${alt.note ? ` Note: ${alt.note}` : ''}`,
+                  icon: '/favicon.ico',
+                });
+              } catch (e) {
+                console.warn('Browser notification error:', e);
+              }
+            }
+
+            // 3. In-App Pop-up Toast
+            setAlertToast({
+              id: alt.id,
+              symbol: alt.symbol,
+              targetPrice: alt.targetPrice,
+              currentPrice: tick.price,
+              condition: alt.condition,
+              note: alt.note,
+            });
+          }
+        }
+      });
+
+      if (triggeredList.length > 0) {
+        const triggeredIds = triggeredList.map((x) => x.id);
+        setPriceAlerts((prev) =>
+          prev.map((a) =>
+            triggeredIds.includes(a.id)
+              ? { ...a, triggered: true, triggeredAt: new Date().toISOString() }
+              : a
+          )
+        );
+      }
     });
 
     return () => unsubscribe();
@@ -230,7 +316,7 @@ export default function PaperTrading({
 
     // Detect horizontal swipe (> 50px) that is dominant over vertical scrolling
     if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
-      const pages: TerminalPage[] = ['watchlist', 'chart', 'trade', 'portfolio', 'history'];
+      const pages: TerminalPage[] = ['watchlist', 'chart', 'trade', 'portfolio', 'history', 'alerts'];
       const curIdx = pages.indexOf(activePage);
       if (deltaX < 0 && curIdx < pages.length - 1) {
         // Swiped Left -> Advance to next page
@@ -244,6 +330,83 @@ export default function PaperTrading({
     }
     touchStartX.current = null;
     touchStartY.current = null;
+  };
+
+  // Price Alert Action Handlers
+  const handleOpenAlertModal = (asset?: TradingAsset) => {
+    const targetAsset = asset || selectedAsset;
+    setAlertModalAsset(targetAsset);
+    const defaultTarget = Number((targetAsset.price * 1.01).toFixed(targetAsset.type === 'forex' ? 4 : 2));
+    setAlertTargetPrice(defaultTarget.toString());
+    setAlertCondition('ABOVE');
+    setAlertNote('');
+    setIsAlertModalOpen(true);
+    sounds.playClick();
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then((p) => setNotificationPermission(p)).catch(() => {});
+    }
+  };
+
+  const handleSaveAlert = () => {
+    const numPrice = parseFloat(alertTargetPrice);
+    if (isNaN(numPrice) || numPrice <= 0) {
+      setTradeToast({ text: 'Please enter a valid target price for the alert', isError: true });
+      return;
+    }
+
+    const newAlert: PriceAlert = {
+      id: `alert-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      symbol: alertModalAsset.symbol,
+      name: alertModalAsset.name,
+      targetPrice: numPrice,
+      condition: alertCondition,
+      createdAt: new Date().toISOString(),
+      triggered: false,
+      note: alertNote.trim() || undefined,
+    };
+
+    setPriceAlerts((prev) => [newAlert, ...prev]);
+    setIsAlertModalOpen(false);
+    sounds.playOrderFill(true);
+
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission().then((p) => setNotificationPermission(p)).catch(() => {});
+    }
+
+    setTradeToast({
+      text: `🔔 Price Alert set for ${alertModalAsset.symbol} @ ₹${numPrice.toLocaleString(undefined, { minimumFractionDigits: alertModalAsset.type === 'forex' ? 4 : 2 })} (${alertCondition === 'ABOVE' ? 'Rises Above' : 'Falls Below'})!`,
+    });
+  };
+
+  const handleDeletePriceAlert = (alertId: string) => {
+    setPriceAlerts((prev) => prev.filter((a) => a.id !== alertId));
+    sounds.playClick();
+    setTradeToast({ text: 'Price alert removed.' });
+  };
+
+  const handleRearmPriceAlert = (alertId: string) => {
+    setPriceAlerts((prev) =>
+      prev.map((a) => (a.id === alertId ? { ...a, triggered: false, triggeredAt: undefined } : a))
+    );
+    sounds.playClick();
+    setTradeToast({ text: '🔔 Alert re-armed! Listening for price targets.' });
+  };
+
+  const handleTestBrowserNotification = () => {
+    sounds.playAlert();
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'granted') {
+        new Notification(`🔔 Test Alert: ${selectedAsset.symbol} hit target!`, {
+          body: `Browser notification is working perfectly on this device! Current price: ₹${selectedAsset.price.toLocaleString()}`,
+          icon: '/favicon.ico',
+        });
+        setTradeToast({ text: '✓ Browser test notification dispatched!' });
+      } else {
+        requestNotificationPermission();
+      }
+    } else {
+      setTradeToast({ text: 'Browser notifications are not supported in this environment.', isError: true });
+    }
   };
 
   // Search filtering
@@ -505,6 +668,14 @@ export default function PaperTrading({
         isLight ? 'text-slate-800' : 'text-white'
       }`}
     >
+      {showTutorial && (
+        <TerminalTutorial
+          onClose={() => {
+            localStorage.setItem('terminal_tutorial_seen', 'true');
+            setShowTutorial(false);
+          }}
+        />
+      )}
       {/* 1. TOP BROKER APP HEADER WITH DEDICATED EXIT BUTTON */}
       <header className={`rounded-2xl border p-3 sm:p-4 shadow-xl flex flex-wrap items-center justify-between gap-3 relative z-30 transition-colors ${
         isLight ? 'bg-white border-slate-200' : 'bg-[#0A0E17] border-white/10'
@@ -624,10 +795,12 @@ export default function PaperTrading({
       }`}>
         {[
           { id: 'watchlist', label: 'Watchlist', icon: List },
+          { id: 'heatmap', label: 'Heatmap', icon: BarChart3 },
           { id: 'chart', label: 'Interactive Chart', icon: TrendingUp },
           { id: 'trade', label: '1-Click Execute', icon: Zap },
           { id: 'portfolio', label: `Portfolio (${user.positions.length})`, icon: Wallet },
           { id: 'history', label: `Orders (${closedTrades.length})`, icon: Clock },
+          { id: 'alerts', label: `Alerts (${priceAlerts.filter(a => !a.triggered).length})`, icon: Bell },
         ].map((tab) => {
           const Icon = tab.icon;
           const isSelected = activePage === tab.id;
@@ -693,6 +866,22 @@ export default function PaperTrading({
       </AnimatePresence>
 
       {/* 3. DEDICATED NATIVE-APP PAGES */}
+
+      {/* PAGE: MARKET HEATMAP */}
+      {activePage === 'heatmap' && (
+        <div className="space-y-4 animate-in fade-in duration-150">
+          <MarketHeatmap
+            assets={assets}
+            onSelectAsset={(asset) => {
+              setSelectedAsset(asset);
+              setActivePage('chart');
+              sounds.playClick();
+              setTradeToast({ text: `Selected ${asset.symbol} from Heatmap` });
+            }}
+            theme={theme}
+          />
+        </div>
+      )}
 
       {/* PAGE 1: WATCHLIST & UNIVERSAL SEARCH */}
       {activePage === 'watchlist' && (
@@ -825,6 +1014,19 @@ export default function PaperTrading({
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
+                          onClick={() => handleOpenAlertModal(asset)}
+                          className={`p-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                            isLight
+                              ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'
+                              : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/20'
+                          }`}
+                          title={`Set Price Alert for ${asset.symbol}`}
+                        >
+                          <Bell className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={() => {
                             setSelectedAsset(asset);
                             setActivePage('chart');
@@ -865,70 +1067,404 @@ export default function PaperTrading({
       )}
 
       {/* PAGE 2: INTERACTIVE CHART VIEW */}
-      {activePage === 'chart' && (
-        <div className="space-y-4 animate-in fade-in duration-150">
-          {/* Quick Asset Bar & Navigation to Trade */}
-          <div className={`p-3 rounded-2xl border flex flex-wrap items-center justify-between gap-3 font-mono text-xs transition-colors ${
-            isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
-          }`}>
-            <div className="flex items-center gap-3">
-              <span className={`text-base font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                {selectedAsset.symbol}
+      {activePage === 'chart' && (() => {
+        const topPicks = ['NIFTY 50', 'BANK NIFTY', 'RELIANCE', 'TCS', 'HDFCBANK', 'TATAMOTORS', 'BTC/USD', 'ETH/USD', 'SOL/USD', 'XAU/USD', 'USD/INR', 'TSLA', 'AAPL', 'NVDA'];
+        const currentActivePos = user.positions.find((p) => p.assetSymbol === selectedAsset.symbol);
+        const livePnl = currentActivePos
+          ? currentActivePos.type === 'BUY'
+            ? (selectedAsset.price - currentActivePos.entryPrice) * currentActivePos.quantity
+            : (currentActivePos.entryPrice - selectedAsset.price) * currentActivePos.quantity
+          : 0;
+        const livePnlPct = currentActivePos
+          ? (((livePnl) / (currentActivePos.entryPrice * currentActivePos.quantity)) * 100).toFixed(2)
+          : '0.00';
+
+        const chartSearchResults = chartSearchQuery.trim()
+          ? assets.filter(
+              (a) =>
+                a.symbol.toLowerCase().includes(chartSearchQuery.toLowerCase()) ||
+                a.name.toLowerCase().includes(chartSearchQuery.toLowerCase())
+            ).slice(0, 8)
+          : [];
+
+        return (
+          <div className="space-y-3 animate-in fade-in duration-150">
+            {/* Quick 1-Tap Asset Selector Carousel */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none select-none">
+              <span className={`text-[11px] font-mono font-bold uppercase tracking-wider shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                POPULAR:
               </span>
-              <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                {selectedAsset.name}
-              </span>
-              <span className={`text-xs font-bold ${
-                selectedAsset.change >= 0 
-                  ? isLight ? 'text-emerald-600' : 'text-[#00FF87]' 
-                  : isLight ? 'text-rose-600' : 'text-[#FF3366]'
-              }`}>
-                {selectedAsset.change >= 0 ? `+${selectedAsset.change}%` : `${selectedAsset.change}%`}
-              </span>
+              {topPicks.map((sym) => {
+                const a = assets.find((item) => item.symbol === sym) || { symbol: sym, price: 0, change: 0, name: sym } as TradingAsset;
+                const isCurrent = a.symbol === selectedAsset.symbol;
+                return (
+                  <button
+                    key={sym}
+                    onClick={() => {
+                      setSelectedAsset(a);
+                      sounds.playClick();
+                    }}
+                    className={`px-3 py-1.5 rounded-xl border font-mono text-xs font-bold transition flex items-center gap-2 whitespace-nowrap cursor-pointer shrink-0 ${
+                      isCurrent
+                        ? isLight
+                          ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                          : 'bg-[#00FF87] text-[#0A0E17] border-[#00FF87] shadow-[0_0_12px_rgba(0,255,135,0.4)]'
+                        : isLight
+                        ? 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
+                        : 'bg-[#121A28] text-slate-300 border-white/10 hover:border-white/25 hover:text-white'
+                    }`}
+                  >
+                    <span>{a.symbol}</span>
+                    <span className={`text-[10px] font-mono ${
+                      a.change >= 0 
+                        ? (isCurrent ? (isLight ? 'text-emerald-300' : 'text-[#0A0E17] font-black') : 'text-emerald-500') 
+                        : (isCurrent ? (isLight ? 'text-rose-300' : 'text-rose-950 font-black') : 'text-rose-500')
+                    }`}>
+                      {a.change >= 0 ? `+${a.change}%` : `${a.change}%`}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setActivePage('watchlist')}
-                className={`px-3 py-1.5 rounded-xl border font-bold transition cursor-pointer ${
-                  isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200' : 'bg-[#151D2A] text-slate-300 border-white/10'
-                }`}
-              >
-                Change Asset
-              </button>
+            {/* Top Asset Info & Quick Search Header */}
+            <div className={`p-3 rounded-2xl border flex flex-wrap items-center justify-between gap-3 font-mono text-xs transition-colors ${
+              isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-base font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                      {selectedAsset.symbol}
+                    </span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded border uppercase font-bold ${
+                      isLight ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-white/5 border-white/10 text-slate-400'
+                    }`}>
+                      {selectedAsset.exchange}
+                    </span>
+                  </div>
+                  <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    {selectedAsset.name}
+                  </span>
+                </div>
 
-              <button
-                type="button"
-                onClick={() => setActivePage('trade')}
-                className={`px-4 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                  isLight ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-[#00FF87] text-[#0A0E17] hover:bg-[#00e577]'
-                }`}
-              >
-                <Zap className="w-3.5 h-3.5" />
-                <span>Open Order Ticket</span>
-              </button>
+                <div className="flex items-center gap-2 pl-2 border-l border-white/10">
+                  <span className={`text-base font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    {formatCurrency(selectedAsset.price, selectedAsset.type === 'forex' ? 4 : 2)}
+                  </span>
+                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
+                    selectedAsset.change >= 0 
+                      ? isLight ? 'bg-emerald-50 text-emerald-700' : 'bg-emerald-950/60 text-[#00FF87]' 
+                      : isLight ? 'bg-rose-50 text-rose-700' : 'bg-rose-950/60 text-[#FF3366]'
+                  }`}>
+                    {selectedAsset.change >= 0 ? `+${selectedAsset.change}%` : `${selectedAsset.change}%`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Controls */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleOpenAlertModal(selectedAsset)}
+                  className={`px-3 py-1.5 rounded-xl border font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    isLight 
+                      ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300' 
+                      : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40'
+                  }`}
+                  title="Set Price Alert (Triggers browser notification when price target is reached)"
+                >
+                  <Bell className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Set Alert</span>
+                  {priceAlerts.filter((a) => !a.triggered && a.symbol === selectedAsset.symbol).length > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsChartSearchOpen(!isChartSearchOpen)}
+                  className={`px-3 py-1.5 rounded-xl border font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    isChartSearchOpen
+                      ? isLight ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-[#00FF87] text-[#0A0E17] border-[#00FF87]'
+                      : isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200' : 'bg-[#151D2A] text-slate-300 border-white/10 hover:text-white'
+                  }`}
+                  title="Search & Switch Asset"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span>Search</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActivePage('trade')}
+                  className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    isLight ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-white/10 text-white hover:bg-white/20 border border-white/10'
+                  }`}
+                  title="Open Detailed Order Ticket"
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="hidden sm:inline">Advanced Ticket</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Active Price Alerts on Current Symbol */}
+            {(() => {
+              const activeOnSym = priceAlerts.filter((a) => !a.triggered && a.symbol === selectedAsset.symbol);
+              if (activeOnSym.length === 0) return null;
+              return (
+                <div className={`p-2.5 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs font-mono animate-in fade-in duration-150 ${
+                  isLight ? 'bg-amber-50/80 border-amber-200 text-amber-900' : 'bg-amber-950/30 border-amber-500/30 text-amber-200'
+                }`}>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold flex items-center gap-1.5 text-amber-400">
+                      <BellRing className="w-3.5 h-3.5 animate-pulse" />
+                      Active Alerts:
+                    </span>
+                    {activeOnSym.map((alt) => (
+                      <span key={alt.id} className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-bold ${
+                        isLight ? 'bg-white border-amber-300 text-slate-800' : 'bg-black/50 border-amber-500/40 text-amber-300'
+                      }`}>
+                        <span>{alt.condition === 'ABOVE' ? '▲ Rises above' : '▼ Falls below'} {formatCurrency(alt.targetPrice, selectedAsset.type === 'forex' ? 4 : 2)}</span>
+                        <button
+                          onClick={() => handleDeletePriceAlert(alt.id)}
+                          className="text-slate-400 hover:text-rose-400 ml-1 cursor-pointer"
+                          title="Delete alert"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setActivePage('alerts')}
+                    className="text-[10px] font-bold underline hover:opacity-80 cursor-pointer"
+                  >
+                    Manage Alerts ({priceAlerts.length}) →
+                  </button>
+                </div>
+              );
+            })()}
+
+            {/* Quick Asset Search Drawer */}
+            {isChartSearchOpen && (
+              <div className={`p-3 rounded-2xl border shadow-xl font-mono text-xs space-y-2 animate-in fade-in duration-150 ${
+                isLight ? 'bg-white border-slate-200' : 'bg-[#121A28] border-white/15'
+              }`}>
+                <div className="relative">
+                  <Search className={`w-4 h-4 absolute left-3 top-2.5 ${isLight ? 'text-slate-400' : 'text-slate-400'}`} />
+                  <input
+                    type="text"
+                    autoFocus
+                    value={chartSearchQuery}
+                    onChange={(e) => setChartSearchQuery(e.target.value)}
+                    placeholder="Type ticker or company... (e.g. Reliance, Apple, Bitcoin, Gold)"
+                    className={`w-full pl-9 pr-9 py-2 rounded-xl border text-xs focus:outline-none transition ${
+                      isLight
+                        ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-emerald-600'
+                        : 'bg-[#0A0E17] border-white/15 text-white focus:border-[#00FF87]'
+                    }`}
+                  />
+                  {chartSearchQuery && (
+                    <button
+                      onClick={() => setChartSearchQuery('')}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {chartSearchResults.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                    {chartSearchResults.map((asset) => (
+                      <button
+                        key={asset.symbol}
+                        onClick={() => {
+                          setSelectedAsset(asset);
+                          setIsChartSearchOpen(false);
+                          setChartSearchQuery('');
+                          sounds.playClick();
+                        }}
+                        className={`p-2 rounded-xl border text-left transition cursor-pointer ${
+                          isLight
+                            ? 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                            : 'bg-[#0A0E17] hover:bg-[#151D2A] border-white/10'
+                        }`}
+                      >
+                        <div className="font-bold">{asset.symbol}</div>
+                        <div className="text-[10px] text-slate-400 truncate">{asset.name}</div>
+                        <div className={`text-[10px] font-bold ${asset.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {formatCurrency(asset.price, asset.type === 'forex' ? 4 : 2)} ({asset.change >= 0 ? `+${asset.change}%` : `${asset.change}%`})
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Chart Canvas */}
+            <SamzenTerminalChart
+              ref={chartRef}
+              symbol={selectedAsset.symbol}
+              name={selectedAsset.name}
+              currentPrice={selectedAsset.price}
+              timeframe={timeframe}
+              onTimeframeChange={setTimeframe}
+              chartType={chartType}
+              onChartTypeChange={setChartType}
+              currencySymbol={getCurrencyDetails().symbol}
+              displayDecimals={selectedAsset.type === 'forex' ? 4 : 2}
+              isMarketOpen={marketStatus.isOpen}
+              onDrawingMetadataChange={setDrawingMetadata}
+              theme={theme}
+            />
+
+            {/* 1-Click Rapid Trade Execution Bar (Directly Attached Below Chart) */}
+            <div className={`p-4 rounded-2xl border shadow-2xl font-mono text-xs transition-colors ${
+              isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
+            }`}>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                {/* Quantity Controls */}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                      QTY:
+                    </span>
+                    <div className={`flex items-center rounded-xl border p-0.5 ${
+                      isLight ? 'bg-slate-100 border-slate-200' : 'bg-[#121A28] border-white/10'
+                    }`}>
+                      <button
+                        onClick={() => {
+                          setOrderQuantity((q) => Math.max(1, q - 1));
+                          sounds.playClick();
+                        }}
+                        className={`p-1.5 rounded-lg transition cursor-pointer ${
+                          isLight ? 'hover:bg-slate-200 text-slate-700' : 'hover:bg-white/10 text-slate-300'
+                        }`}
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <input
+                        type="number"
+                        min="1"
+                        value={orderQuantity}
+                        onChange={(e) => setOrderQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                        className={`w-12 text-center font-bold text-xs bg-transparent focus:outline-none ${
+                          isLight ? 'text-slate-900' : 'text-white'
+                        }`}
+                      />
+                      <button
+                        onClick={() => {
+                          setOrderQuantity((q) => q + 1);
+                          sounds.playClick();
+                        }}
+                        className={`p-1.5 rounded-lg transition cursor-pointer ${
+                          isLight ? 'hover:bg-slate-200 text-slate-700' : 'hover:bg-white/10 text-slate-300'
+                        }`}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Quantity Presets */}
+                  <div className="hidden sm:flex items-center gap-1">
+                    {[1, 5, 10, 25, 100].map((preset) => (
+                      <button
+                        key={preset}
+                        onClick={() => {
+                          setOrderQuantity(preset);
+                          sounds.playClick();
+                        }}
+                        className={`px-2 py-1 rounded-lg border text-[10px] font-bold transition cursor-pointer ${
+                          orderQuantity === preset
+                            ? isLight ? 'bg-slate-900 text-white border-slate-900' : 'bg-white/20 text-white border-white/30'
+                            : isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200' : 'bg-[#121A28] hover:bg-[#1E293B] text-slate-400 border-white/5'
+                        }`}
+                      >
+                        {preset}x
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Instant 1-Click Buy & Sell Buttons */}
+                <div className="flex items-center gap-3 flex-1 sm:flex-initial justify-end">
+                  {/* BUY BUTTON */}
+                  <button
+                    onClick={handleOneClickBuy}
+                    className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 ${
+                      isLight
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25'
+                        : 'bg-[#00FF87] hover:bg-[#00e577] text-[#0A0E17] shadow-[0_0_15px_rgba(0,255,135,0.4)]'
+                    }`}
+                  >
+                    <ArrowUpRight className="w-4 h-4" />
+                    <span>BUY @ {formatCurrency(selectedAsset.price, selectedAsset.type === 'forex' ? 4 : 2)}</span>
+                  </button>
+
+                  {/* SELL BUTTON */}
+                  <button
+                    onClick={handleOneClickSell}
+                    className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 ${
+                      isLight
+                        ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/25'
+                        : 'bg-[#FF3366] hover:bg-[#ff1f57] text-white shadow-[0_0_15px_rgba(255,51,102,0.4)]'
+                    }`}
+                  >
+                    <ArrowDownRight className="w-4 h-4" />
+                    <span>SELL @ {formatCurrency(selectedAsset.price, selectedAsset.type === 'forex' ? 4 : 2)}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Bottom Status: Open Position Bar or Balance Indicator */}
+              <div className={`mt-3 pt-3 border-t flex flex-wrap items-center justify-between gap-2 text-[11px] ${
+                isLight ? 'border-slate-200 text-slate-500' : 'border-white/10 text-slate-400'
+              }`}>
+                {currentActivePos ? (
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+                        currentActivePos.type === 'BUY'
+                          ? isLight ? 'bg-emerald-100 text-emerald-800' : 'bg-emerald-950/80 text-emerald-300'
+                          : isLight ? 'bg-rose-100 text-rose-800' : 'bg-rose-950/80 text-rose-300'
+                      }`}>
+                        ACTIVE {currentActivePos.type} {currentActivePos.quantity}x
+                      </span>
+                      <span>Entry: {formatCurrency(currentActivePos.entryPrice)}</span>
+                      <span>•</span>
+                      <span className={`font-bold ${livePnl >= 0 ? (isLight ? 'text-emerald-600' : 'text-[#00FF87]') : (isLight ? 'text-rose-600' : 'text-[#FF3366]')}`}>
+                        P&L: {livePnl >= 0 ? '+' : ''}{formatCurrency(livePnl)} ({livePnl >= 0 ? '+' : ''}{livePnlPct}%)
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => handleClosePosition(currentActivePos)}
+                      className="px-3 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 font-bold transition cursor-pointer"
+                    >
+                      Close Position
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="w-3.5 h-3.5" />
+                      <span>Available Capital: <strong className={isLight ? 'text-slate-900' : 'text-white'}>{formatCurrency(user.demoBalance)}</strong></span>
+                      <span>•</span>
+                      <span>Est. Trade Cost: {formatCurrency(selectedAsset.price * orderQuantity)}</span>
+                    </div>
+                    <span className="text-[10px] opacity-75">1-Click Instant Execution Active</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-
-          {/* Chart Canvas */}
-          <SamzenTerminalChart
-            ref={chartRef}
-            symbol={selectedAsset.symbol}
-            name={selectedAsset.name}
-            currentPrice={selectedAsset.price}
-            timeframe={timeframe}
-            onTimeframeChange={setTimeframe}
-            chartType={chartType}
-            onChartTypeChange={setChartType}
-            currencySymbol={getCurrencyDetails().symbol}
-            displayDecimals={selectedAsset.type === 'forex' ? 4 : 2}
-            isMarketOpen={marketStatus.isOpen}
-            onDrawingMetadataChange={setDrawingMetadata}
-            theme={theme}
-          />
-        </div>
-      )}
+        );
+      })()}
 
       {/* PAGE 3: 1-CLICK ORDER EXECUTION STATION */}
       {activePage === 'trade' && (
@@ -1391,6 +1927,530 @@ export default function PaperTrading({
           </div>
         </div>
       )}
+
+      {/* PAGE 6: PRICE ALERTS & BROWSER NOTIFICATIONS */}
+      {activePage === 'alerts' && (() => {
+        const activeAlerts = priceAlerts.filter((a) => !a.triggered);
+        const triggeredAlerts = priceAlerts.filter((a) => a.triggered);
+
+        return (
+          <div className="space-y-4 animate-in fade-in duration-150 font-mono">
+            {/* Top Header Card */}
+            <div className={`p-5 rounded-3xl border shadow-xl flex flex-wrap items-center justify-between gap-4 transition-colors ${
+              isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
+            }`}>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+                    <Bell className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-bold text-base">Real-Time Price Alerts</h3>
+                </div>
+                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  Trigger browser notifications and audio chimes when real-world market prices cross your targets.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleTestBrowserNotification}
+                  className={`px-3 py-2 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    isLight
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                      : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10'
+                  }`}
+                  title="Test if your browser can receive desktop notifications"
+                >
+                  <BellRing className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Test Notification</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleOpenAlertModal(selectedAsset)}
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-lg active:scale-95 ${
+                    isLight
+                      ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/25'
+                      : 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-amber-400/20'
+                  }`}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Set New Alert</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Browser Permission Status Banner */}
+            <div className={`p-4 rounded-2xl border flex flex-wrap items-center justify-between gap-3 text-xs transition-colors ${
+              notificationPermission === 'granted'
+                ? isLight ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
+                : isLight ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-amber-950/40 border-amber-500/30 text-amber-300'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                {notificationPermission === 'granted' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                )}
+                <div>
+                  <span className="font-bold block">
+                    {notificationPermission === 'granted'
+                      ? 'Browser Desktop Notifications: ENABLED & ACTIVE'
+                      : 'Browser Desktop Notifications: NOT ENABLED'}
+                  </span>
+                  <span className="text-[11px] opacity-80 block">
+                    {notificationPermission === 'granted'
+                      ? 'You will receive immediate system pop-ups even if you are viewing other browser tabs or software.'
+                      : 'Click enable to receive native OS desktop alerts whenever target prices are crossed.'}
+                  </span>
+                </div>
+              </div>
+
+              {notificationPermission !== 'granted' && (
+                <button
+                  type="button"
+                  onClick={requestNotificationPermission}
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition cursor-pointer shadow-sm"
+                >
+                  Enable Browser Notifications
+                </button>
+              )}
+            </div>
+
+            {/* Summary Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className={`p-4 rounded-2xl border transition-colors ${
+                isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
+              }`}>
+                <span className={`text-[11px] block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>TOTAL PRICE ALERTS</span>
+                <span className={`text-xl font-black block mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  {priceAlerts.length} Configured
+                </span>
+              </div>
+
+              <div className={`p-4 rounded-2xl border transition-colors ${
+                isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
+              }`}>
+                <span className={`text-[11px] block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>ACTIVE LISTENING</span>
+                <span className="text-xl font-black block mt-1 text-emerald-400">
+                  {activeAlerts.length} Armed
+                </span>
+              </div>
+
+              <div className={`p-4 rounded-2xl border transition-colors ${
+                isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
+              }`}>
+                <span className={`text-[11px] block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>TRIGGERED HITS</span>
+                <span className="text-xl font-black block mt-1 text-amber-400">
+                  {triggeredAlerts.length} Completed
+                </span>
+              </div>
+            </div>
+
+            {/* Alerts List */}
+            <div className={`rounded-3xl border shadow-xl overflow-hidden transition-colors ${
+              isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
+            }`}>
+              <div className={`p-4 border-b flex items-center justify-between ${
+                isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#0A0E17] border-white/10'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-amber-400" />
+                  <h4 className="font-bold text-sm">Alert Rules & Targets</h4>
+                </div>
+                <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  Real-Time Ticker Monitored
+                </span>
+              </div>
+
+              <div className="p-4">
+                {priceAlerts.length === 0 ? (
+                  <div className="text-center py-12 space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+                      <BellOff className="w-6 h-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className={`font-bold text-sm ${isLight ? 'text-slate-800' : 'text-white'}`}>No Price Alerts Configured</h4>
+                      <p className={`text-xs max-w-sm mx-auto ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                        Set an alert on your favorite stock, crypto, or forex pair to receive instant desktop notifications when target prices are reached.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAlertModal(selectedAsset)}
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition cursor-pointer"
+                    >
+                      + Set Alert for {selectedAsset.symbol}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {priceAlerts.map((alt) => {
+                      const asset = assets.find((a) => a.symbol === alt.symbol) || selectedAsset;
+                      const curPrice = asset.price;
+                      const diff = curPrice - alt.targetPrice;
+                      const diffPct = Number(((diff / alt.targetPrice) * 100).toFixed(2));
+                      const isTriggered = alt.triggered;
+
+                      return (
+                        <div
+                          key={alt.id}
+                          className={`p-4 rounded-2xl border flex flex-wrap items-center justify-between gap-3 transition ${
+                            isTriggered
+                              ? isLight ? 'bg-slate-50/80 border-slate-200 opacity-75' : 'bg-[#0A0E17]/60 border-white/5 opacity-70'
+                              : isLight ? 'bg-amber-50/40 border-amber-200' : 'bg-[#121A28] border-amber-500/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2.5 rounded-xl border ${
+                              isTriggered
+                                ? isLight ? 'bg-slate-200 text-slate-500 border-slate-300' : 'bg-white/5 text-slate-400 border-white/10'
+                                : alt.condition === 'ABOVE'
+                                ? isLight ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-[#00FF87]/20 text-[#00FF87] border-[#00FF87]/30'
+                                : isLight ? 'bg-rose-100 text-rose-800 border-rose-300' : 'bg-[#FF3366]/20 text-[#FF3366] border-[#FF3366]/30'
+                            }`}>
+                              {alt.condition === 'ABOVE' ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
+                            </div>
+
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className={`font-black text-sm ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                                  {alt.symbol}
+                                </span>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${
+                                  alt.condition === 'ABOVE'
+                                    ? isLight ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-emerald-950/60 text-emerald-300 border-emerald-500/30'
+                                    : isLight ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-rose-950/60 text-rose-300 border-rose-500/30'
+                                }`}>
+                                  {alt.condition === 'ABOVE' ? '▲ RISES ABOVE' : '▼ FALLS BELOW'}
+                                </span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                                  isTriggered
+                                    ? isLight ? 'bg-slate-200 text-slate-600' : 'bg-white/10 text-slate-400'
+                                    : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                }`}>
+                                  {isTriggered ? 'TRIGGERED' : 'ARMED'}
+                                </span>
+                              </div>
+
+                              <div className="text-xs mt-1 space-x-2">
+                                <span>Target: <strong className={isLight ? 'text-slate-900' : 'text-white'}>{formatCurrency(alt.targetPrice, asset.type === 'forex' ? 4 : 2)}</strong></span>
+                                <span>•</span>
+                                <span>Live: <strong className={isLight ? 'text-slate-900' : 'text-white'}>{formatCurrency(curPrice, asset.type === 'forex' ? 4 : 2)}</strong></span>
+                                {!isTriggered && (
+                                  <>
+                                    <span>•</span>
+                                    <span className="text-slate-400">
+                                      ({Math.abs(diffPct)}% away)
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+
+                              {alt.note && (
+                                <p className="text-[11px] text-amber-400/90 italic mt-1">
+                                  "{alt.note}"
+                                </p>
+                              )}
+
+                              {isTriggered && alt.triggeredAt && (
+                                <span className="text-[10px] text-slate-400 block mt-1">
+                                  Triggered at: {new Date(alt.triggeredAt).toLocaleTimeString()}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const found = assets.find((a) => a.symbol === alt.symbol);
+                                if (found) setSelectedAsset(found);
+                                setActivePage('chart');
+                                sounds.playClick();
+                              }}
+                              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                                isLight
+                                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                                  : 'bg-[#151D2A] hover:bg-[#1E293B] text-white border-white/10'
+                              }`}
+                            >
+                              Chart
+                            </button>
+
+                            {isTriggered ? (
+                              <button
+                                type="button"
+                                onClick={() => handleRearmPriceAlert(alt.id)}
+                                className={`px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer flex items-center gap-1 ${
+                                  isLight
+                                    ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                                    : 'bg-amber-400 hover:bg-amber-300 text-slate-950'
+                                }`}
+                                title="Re-arm this alert to trigger again"
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                                <span>Re-arm</span>
+                              </button>
+                            ) : null}
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePriceAlert(alt.id)}
+                              className="p-1.5 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition cursor-pointer"
+                              title="Delete alert"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Set Price Alert Modal */}
+      {isAlertModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className={`w-full max-w-md rounded-3xl border p-6 sm:p-7 shadow-2xl font-mono text-xs space-y-4 ${
+            isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0E1726] border-white/10 text-white'
+          }`}>
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-3 border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
+                  <Bell className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black">Set Price Alert</h3>
+                  <span className="text-[11px] text-slate-400">{alertModalAsset.symbol} • {alertModalAsset.name}</span>
+                </div>
+              </div>
+              <button onClick={() => setIsAlertModalOpen(false)} className="text-slate-400 hover:text-white p-1 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Current Price Reference */}
+            <div className={`p-3 rounded-xl border flex items-center justify-between ${
+              isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#121A28] border-white/10'
+            }`}>
+              <span className="text-slate-400 font-bold">CURRENT LIVE PRICE:</span>
+              <span className="text-base font-black">
+                {formatCurrency(alertModalAsset.price, alertModalAsset.type === 'forex' ? 4 : 2)}
+              </span>
+            </div>
+
+            {/* Target Price Input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold block text-slate-400">TARGET ALERT PRICE</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="any"
+                  autoFocus
+                  value={alertTargetPrice}
+                  onChange={(e) => {
+                    setAlertTargetPrice(e.target.value);
+                    const p = parseFloat(e.target.value);
+                    if (!isNaN(p)) {
+                      if (p > alertModalAsset.price) setAlertCondition('ABOVE');
+                      else if (p < alertModalAsset.price) setAlertCondition('BELOW');
+                    }
+                  }}
+                  placeholder="e.g. 2500"
+                  className={`w-full p-3 rounded-xl border text-sm font-bold focus:outline-none transition ${
+                    isLight ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-amber-500' : 'bg-[#0A0E17] border-white/15 text-white focus:border-amber-400'
+                  }`}
+                />
+              </div>
+
+              {/* Quick Percent Presets (+1%, +2%, +5%, -1%, -2%, -5%) */}
+              <div className="flex items-center gap-1.5 pt-1 overflow-x-auto scrollbar-none">
+                {[-5, -2, -1, 1, 2, 5].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => {
+                      const calculated = alertModalAsset.price * (1 + pct / 100);
+                      setAlertTargetPrice(calculated.toFixed(alertModalAsset.type === 'forex' ? 4 : 2));
+                      setAlertCondition(pct > 0 ? 'ABOVE' : 'BELOW');
+                      sounds.playClick();
+                    }}
+                    className={`px-2 py-1 rounded-lg border text-[10px] font-bold cursor-pointer transition ${
+                      pct > 0
+                        ? isLight ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30 hover:bg-emerald-950/80'
+                        : isLight ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' : 'bg-rose-950/40 text-rose-300 border-rose-500/30 hover:bg-rose-950/80'
+                    }`}
+                  >
+                    {pct > 0 ? `+${pct}%` : `${pct}%`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Trigger Condition Selector */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold block text-slate-400">TRIGGER WHEN PRICE</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setAlertCondition('ABOVE'); sounds.playClick(); }}
+                  className={`p-2.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition ${
+                    alertCondition === 'ABOVE'
+                      ? isLight ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-[#00FF87] text-[#0A0E17] border-[#00FF87]'
+                      : isLight ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-[#121A28] text-slate-300 border-white/10'
+                  }`}
+                >
+                  <ArrowUpRight className="w-4 h-4" />
+                  <span>Rises Above (▲)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAlertCondition('BELOW'); sounds.playClick(); }}
+                  className={`p-2.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition ${
+                    alertCondition === 'BELOW'
+                      ? isLight ? 'bg-rose-600 text-white border-rose-600' : 'bg-[#FF3366] text-white border-[#FF3366]'
+                      : isLight ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-[#121A28] text-slate-300 border-white/10'
+                  }`}
+                >
+                  <ArrowDownRight className="w-4 h-4" />
+                  <span>Falls Below (▼)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Note / Tag */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold block text-slate-400">NOTE (OPTIONAL)</label>
+              <input
+                type="text"
+                value={alertNote}
+                onChange={(e) => setAlertNote(e.target.value)}
+                placeholder="e.g. Resistance breakout, Stop Loss level, Take Profit"
+                className={`w-full p-2.5 rounded-xl border text-xs focus:outline-none transition ${
+                  isLight ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-amber-500' : 'bg-[#0A0E17] border-white/15 text-white focus:border-amber-400'
+                }`}
+              />
+            </div>
+
+            {/* Browser Notification Status */}
+            <div className={`p-3 rounded-xl border flex items-center justify-between ${
+              notificationPermission === 'granted'
+                ? isLight ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
+                : isLight ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-amber-950/40 border-amber-500/30 text-amber-300'
+            }`}>
+              <div className="flex items-center gap-2">
+                {notificationPermission === 'granted' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                )}
+                <span className="text-[11px] font-bold">
+                  {notificationPermission === 'granted'
+                    ? 'Desktop & Browser Alerts: Active'
+                    : 'Browser Notifications: Not Enabled'}
+                </span>
+              </div>
+              {notificationPermission !== 'granted' && (
+                <button
+                  type="button"
+                  onClick={requestNotificationPermission}
+                  className="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 font-bold text-[10px] hover:bg-amber-400 transition cursor-pointer"
+                >
+                  Enable Now
+                </button>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsAlertModalOpen(false)}
+                className={`flex-1 py-2.5 rounded-xl border font-bold transition cursor-pointer ${
+                  isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200' : 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/10'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAlert}
+                className={`flex-1 py-2.5 rounded-xl font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-lg ${
+                  isLight ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-amber-400/20'
+                }`}
+              >
+                <Bell className="w-4 h-4" />
+                <span>Save Alert</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Persistent In-App Alert Toast / Notification Banner */}
+      <AnimatePresence>
+        {alertToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-5 right-5 z-50 max-w-sm sm:max-w-md p-4 rounded-2xl border shadow-2xl backdrop-blur-xl bg-[#0E1726]/95 border-amber-500/60 text-white font-mono"
+          >
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 shrink-0">
+                <BellRing className="w-6 h-6 animate-bounce" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">
+                    🚨 Price Alert Hit
+                  </span>
+                  <button onClick={() => setAlertToast(null)} className="text-slate-400 hover:text-white p-1">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <h4 className="font-black text-sm sm:text-base mt-0.5">
+                  {alertToast.symbol} reached {formatCurrency(alertToast.currentPrice)}!
+                </h4>
+                <p className="text-xs text-slate-300 mt-1">
+                  Crossed target of {formatCurrency(alertToast.targetPrice)} ({alertToast.condition === 'ABOVE' ? 'Risen above' : 'Fallen below'}).
+                  {alertToast.note ? ` Note: "${alertToast.note}"` : ''}
+                </p>
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const a = assets.find((x) => x.symbol === alertToast.symbol);
+                      if (a) setSelectedAsset(a);
+                      setActivePage('chart');
+                      setAlertToast(null);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-md"
+                  >
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span>Open Chart</span>
+                  </button>
+                  <button
+                    onClick={() => setAlertToast(null)}
+                    className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition cursor-pointer"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Capital Management Modal */}
       {isDepositModalOpen && (

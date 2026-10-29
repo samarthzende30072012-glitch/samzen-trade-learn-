@@ -32,14 +32,12 @@ export const auth = getAuth(app);
 // Initialize Cloud Firestore using provisioned database ID
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
 
-// Test Firestore Connection on boot
+// Test Firestore Connection on boot (silent check)
 export async function testFirestoreConnection() {
   try {
     await getDocFromServer(doc(db, '_connection_test', 'status'));
-  } catch (error: any) {
-    if (error?.message?.includes('the client is offline')) {
-      console.warn('[Firebase] Firestore client offline or unreachable.');
-    }
+  } catch {
+    // Silent catch for offline or uninitialized backend
   }
 }
 testFirestoreConnection();

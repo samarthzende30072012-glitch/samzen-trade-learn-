@@ -193,21 +193,170 @@ export default function LearningDashboard({
             </div>
           </div>
 
+          {/* Embedded High-Fidelity Technical Illustration Image */}
+          {activeStudyModule.illustrationImage && (
+            <div className={`rounded-3xl overflow-hidden border shadow-2xl relative group ${
+              isLight ? 'border-slate-200 bg-white' : 'border-white/15 bg-[#0E1726]'
+            }`}>
+              <div className="relative h-64 sm:h-80 md:h-96 overflow-hidden">
+                <img
+                  src={activeStudyModule.illustrationImage}
+                  alt={activeStudyModule.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0E17] via-black/30 to-transparent" />
+                <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+                  <span className="bg-[#00FF87] text-[#0A0E17] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-lg">
+                    Institutional Technical Blueprint
+                  </span>
+                  <span className="bg-black/70 text-slate-200 px-3 py-1 rounded-full border border-white/20 backdrop-blur-md">
+                    Module {activeStudyModule.moduleNumber} Visual Study Notes
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Embedded Technical Visual Diagram */}
+          {activeStudyModule.diagramType && (
+            <div className={`p-6 sm:p-8 rounded-3xl border shadow-xl space-y-4 ${
+              isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-[#00FF87]/30 shadow-[0_0_25px_rgba(0,255,135,0.08)]'
+            }`}>
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-[#00FF87] animate-ping" />
+                  <h3 className={`text-sm sm:text-base font-serif font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    {activeStudyModule.diagramTitle || 'Interactive Technical Setup Diagram'}
+                  </h3>
+                </div>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[#00FF87] px-2.5 py-1 rounded-full bg-[#00FF87]/10 border border-[#00FF87]/30">
+                  Full Chart Blueprint
+                </span>
+              </div>
+
+              {/* Dynamic Diagram Renderers */}
+              {activeStudyModule.diagramType === 'candlestick' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                  {/* Bullish Candle Structure */}
+                  <div className="p-4 rounded-2xl bg-[#0A0E17] border border-emerald-500/30 text-center space-y-2">
+                    <span className="text-xs font-mono font-bold text-emerald-400 uppercase">Bullish Anatomy (Green)</span>
+                    <div className="flex flex-col items-center py-2">
+                      <div className="w-1 h-6 bg-emerald-400" title="Upper Wick (High)" />
+                      <div className="w-16 h-20 bg-emerald-500 rounded-sm flex flex-col justify-between p-1.5 text-[9px] font-mono text-slate-950 font-bold border border-emerald-300">
+                        <span>Close ⬆</span>
+                        <span>Open ⬇</span>
+                      </div>
+                      <div className="w-1 h-8 bg-emerald-400" title="Lower Wick (Absorption)" />
+                    </div>
+                    <p className="text-[11px] text-slate-300 leading-snug">Close &gt; Open. Buyers accepted prices higher. Long lower wick shows institutional absorption.</p>
+                  </div>
+
+                  {/* Bearish Candle Structure */}
+                  <div className="p-4 rounded-2xl bg-[#0A0E17] border border-rose-500/30 text-center space-y-2">
+                    <span className="text-xs font-mono font-bold text-rose-400 uppercase">Bearish Anatomy (Crimson)</span>
+                    <div className="flex flex-col items-center py-2">
+                      <div className="w-1 h-8 bg-rose-400" title="Upper Wick (Rejection)" />
+                      <div className="w-16 h-20 bg-rose-500 rounded-sm flex flex-col justify-between p-1.5 text-[9px] font-mono text-white font-bold border border-rose-300">
+                        <span>Open ⬆</span>
+                        <span>Close ⬇</span>
+                      </div>
+                      <div className="w-1 h-5 bg-rose-400" title="Lower Wick (Low)" />
+                    </div>
+                    <p className="text-[11px] text-slate-300 leading-snug">Close &lt; Open. Sellers overwhelmed demand. Upper wick marks aggressive institutional selling.</p>
+                  </div>
+
+                  {/* Pin Bar Hammer Setup */}
+                  <div className="p-4 rounded-2xl bg-[#0A0E17] border border-amber-500/30 text-center space-y-2">
+                    <span className="text-xs font-mono font-bold text-amber-400 uppercase">Pin Bar Trap (Hammer)</span>
+                    <div className="flex flex-col items-center py-2">
+                      <div className="w-1 h-2 bg-emerald-400" />
+                      <div className="w-16 h-8 bg-emerald-500 rounded-sm flex items-center justify-center text-[9px] font-mono text-slate-950 font-bold">
+                        <span>Tiny Body</span>
+                      </div>
+                      <div className="w-1 h-24 bg-emerald-400" title="Liquidity Absorption Tail" />
+                    </div>
+                    <p className="text-[11px] text-slate-300 leading-snug">Wick length &gt; 2.5x body. Retail stops cleared at support, then absorbed by algorithmic buyers.</p>
+                  </div>
+                </div>
+              )}
+
+              {activeStudyModule.diagramType === 'support_resistance' && (
+                <div className="p-5 rounded-2xl bg-[#0A0E17] border border-blue-500/30 space-y-4">
+                  <div className="flex justify-between items-center text-xs font-mono">
+                    <span className="text-rose-400 font-bold">Prior Resistance Zone (Trapped Sellers)</span>
+                    <span className="text-emerald-400 font-bold">Converted Support Floor (RBS)</span>
+                  </div>
+                  <div className="relative h-32 border-b-2 border-dashed border-rose-400/60 flex items-center justify-between px-6 bg-gradient-to-b from-rose-500/5 to-transparent rounded-xl">
+                    <span className="bg-rose-500 text-white text-[10px] font-mono px-2 py-0.5 rounded font-bold">Resistance Level</span>
+                    <div className="text-center">
+                      <span className="text-xs font-mono text-[#00FF87] font-black block">High-Volume Breakout Bar ➔</span>
+                      <span className="text-[10px] text-slate-400">Pullback Retest (Enter Here)</span>
+                    </div>
+                    <span className="bg-[#00FF87] text-[#0A0E17] text-[10px] font-mono px-2 py-0.5 rounded font-bold">New Support Base</span>
+                  </div>
+                  <p className="text-xs font-mono text-slate-300 text-center">
+                    Polarity Principle: Old resistance flips into new institutional demand when price retests the level on declining volume.
+                  </p>
+                </div>
+              )}
+
+              {activeStudyModule.diagramType === 'risk_matrix' && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 font-mono text-center">
+                  <div className="p-3.5 rounded-xl bg-[#0A0E17] border border-white/10">
+                    <span className="text-[10px] text-slate-400 block uppercase">Account Balance</span>
+                    <span className="text-base font-bold text-white mt-1 block">₹1,00,000</span>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-[#0A0E17] border border-emerald-500/30">
+                    <span className="text-[10px] text-emerald-400 block uppercase">1% Max Risk</span>
+                    <span className="text-base font-bold text-emerald-400 mt-1 block">₹1,000</span>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-[#0A0E17] border border-blue-500/30">
+                    <span className="text-[10px] text-blue-400 block uppercase">Stop Distance</span>
+                    <span className="text-base font-bold text-[#00F0FF] mt-1 block">50 Points</span>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-[#0A0E17] border border-amber-500/30">
+                    <span className="text-[10px] text-amber-400 block uppercase">Allowed Size</span>
+                    <span className="text-base font-bold text-amber-400 mt-1 block">20 Units</span>
+                  </div>
+                </div>
+              )}
+
+              {activeStudyModule.diagramType === 'order_block' && (
+                <div className="p-5 rounded-2xl bg-[#0A0E17] border border-purple-500/30 space-y-3 font-mono text-xs text-center">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30">
+                      <span className="font-bold text-purple-300 block mb-1">1. Order Block (OB)</span>
+                      <p className="text-[11px] text-slate-300">Last opposite candle before an explosive institutional displacement move.</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30">
+                      <span className="font-bold text-blue-300 block mb-1">2. Fair Value Gap (FVG)</span>
+                      <p className="text-[11px] text-slate-300">Price imbalance between candle 1 high and candle 3 low awaiting mitigation.</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                      <span className="font-bold text-emerald-300 block mb-1">3. Mitigation & Entry</span>
+                      <p className="text-[11px] text-slate-300">Enter when price returns to fill the FVG and tap the Order Block threshold.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Learning Objectives Box */}
-          <div className={`p-6 rounded-2xl border space-y-3 ${
+          <div className={`p-6 sm:p-8 rounded-3xl border space-y-4 ${
             isLight ? 'bg-emerald-50/60 border-emerald-200' : 'bg-[#00FF87]/5 border-[#00FF87]/20'
           }`}>
-            <h3 className={`text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-2 ${
+            <h3 className={`text-sm sm:text-base font-mono font-bold uppercase tracking-wider flex items-center gap-2 ${
               isLight ? 'text-emerald-900' : 'text-[#00FF87]'
             }`}>
-              <Award className="w-4 h-4" />
+              <Award className="w-5 h-5" />
               Core Institutional Mastery Objectives
             </h3>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm sm:text-base">
               {activeStudyModule.learningObjectives.map((obj, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span className={`font-bold mt-0.5 ${isLight ? 'text-emerald-700' : 'text-[#00FF87]'}`}>✓</span>
-                  <span className={isLight ? 'text-slate-700' : 'text-slate-300'}>{obj}</span>
+                <li key={i} className="flex items-start gap-2.5">
+                  <span className={`font-bold mt-1 text-base ${isLight ? 'text-emerald-700' : 'text-[#00FF87]'}`}>✓</span>
+                  <span className={isLight ? 'text-slate-800' : 'text-slate-200'}>{obj}</span>
                 </li>
               ))}
             </ul>
@@ -215,51 +364,51 @@ export default function LearningDashboard({
 
           {/* Mathematical Formula Callout if any */}
           {activeStudyModule.formula && (
-            <div className={`p-6 rounded-2xl border space-y-3 ${
+            <div className={`p-6 sm:p-8 rounded-3xl border space-y-4 ${
               isLight ? 'bg-blue-50/70 border-blue-200' : 'bg-[#0E1A2D] border-blue-500/30'
             }`}>
               <div className="flex items-center justify-between">
-                <span className={`text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-2 ${
+                <span className={`text-xs sm:text-sm font-mono font-bold uppercase tracking-wider flex items-center gap-2 ${
                   isLight ? 'text-blue-900' : 'text-[#00F0FF]'
                 }`}>
-                  <BarChart2 className="w-4 h-4" />
+                  <BarChart2 className="w-5 h-5" />
                   Mathematical Blueprint: {activeStudyModule.formula.name}
                 </span>
 
                 <button
                   type="button"
                   onClick={() => handleCopyFormula(activeStudyModule.formula!.expression)}
-                  className={`p-1.5 rounded-lg border text-xs font-mono flex items-center gap-1 transition ${
+                  className={`p-2 rounded-xl border text-xs font-mono flex items-center gap-1.5 transition ${
                     isLight 
                       ? 'bg-white border-blue-300 text-blue-900 hover:bg-blue-100' 
                       : 'bg-[#152338] border-white/10 text-slate-300 hover:text-white'
                   }`}
                   title="Copy formula"
                 >
-                  {copiedFormula ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span className="text-[10px]">{copiedFormula ? 'Copied' : 'Copy'}</span>
+                  {copiedFormula ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  <span className="text-xs font-bold">{copiedFormula ? 'Copied' : 'Copy'}</span>
                 </button>
               </div>
 
-              <div className={`p-4 rounded-xl font-mono font-black text-sm sm:text-base border ${
+              <div className={`p-5 rounded-2xl font-mono font-black text-base sm:text-lg border ${
                 isLight ? 'bg-white border-blue-200 text-blue-950' : 'bg-[#0A101D] border-blue-500/30 text-[#00F0FF]'
               }`}>
                 {activeStudyModule.formula.expression}
               </div>
 
-              <div className="space-y-1.5 text-xs">
+              <div className="space-y-2 text-sm sm:text-base">
                 {activeStudyModule.formula.variables.map((v, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <span className="font-mono font-bold text-emerald-500 shrink-0">• {v.symbol}:</span>
-                    <span className={isLight ? 'text-slate-700' : 'text-slate-300'}>{v.meaning}</span>
+                  <div key={i} className="flex items-start gap-2.5">
+                    <span className="font-mono font-bold text-emerald-400 shrink-0">• {v.symbol}:</span>
+                    <span className={isLight ? 'text-slate-800' : 'text-slate-200'}>{v.meaning}</span>
                   </div>
                 ))}
               </div>
 
-              <div className={`p-3 rounded-xl border text-xs leading-relaxed ${
-                isLight ? 'bg-white/80 border-blue-200 text-slate-700' : 'bg-black/30 border-white/5 text-slate-300'
+              <div className={`p-4 rounded-2xl border text-sm sm:text-base leading-relaxed ${
+                isLight ? 'bg-white/80 border-blue-200 text-slate-800' : 'bg-black/30 border-white/5 text-slate-200'
               }`}>
-                <strong className={`block uppercase font-mono text-[10px] tracking-wider mb-1 ${
+                <strong className={`block uppercase font-mono text-xs tracking-wider mb-1.5 ${
                   isLight ? 'text-blue-800' : 'text-blue-300'
                 }`}>
                   Practical Institutional Calculation:
@@ -269,40 +418,42 @@ export default function LearningDashboard({
             </div>
           )}
 
-          {/* Main Comprehensive Written Sections */}
+          {/* Main Comprehensive Large-Size Written Sections */}
           <div className="space-y-6">
             {activeStudyModule.sections.map((section, idx) => (
               <div
                 key={idx}
-                className={`p-6 sm:p-8 rounded-3xl border space-y-4 shadow-lg transition-colors ${
+                className={`p-6 sm:p-10 rounded-3xl border space-y-5 shadow-xl transition-colors ${
                   isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
                 }`}
               >
-                <h2 className={`text-lg sm:text-xl font-serif font-bold flex items-center gap-2.5 ${
+                <h2 className={`text-xl sm:text-2xl font-serif font-black flex items-center gap-3 ${
                   isLight ? 'text-slate-900' : 'text-white'
                 }`}>
-                  <span className={`w-2.5 h-2.5 rounded-full ${isLight ? 'bg-emerald-600' : 'bg-[#00FF87]'}`} />
+                  <span className={`w-3 h-3 rounded-full ${isLight ? 'bg-emerald-600' : 'bg-[#00FF87]'}`} />
                   {section.title}
                 </h2>
 
-                <div className={`space-y-3 text-sm leading-relaxed ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                <div className={`space-y-4 text-base sm:text-lg leading-relaxed sm:leading-loose ${
+                  isLight ? 'text-slate-800 font-sans' : 'text-slate-200 font-sans'
+                }`}>
                   {section.content.map((p, pIdx) => (
                     <p key={pIdx}>{p}</p>
                   ))}
                 </div>
 
                 {section.bulletChecklist && (
-                  <div className={`p-4 rounded-2xl border space-y-2 text-xs font-mono ${
+                  <div className={`p-5 rounded-2xl border space-y-2.5 text-sm sm:text-base font-mono ${
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#0A0E17] border-white/10'
                   }`}>
-                    <span className={`font-bold uppercase tracking-wider block ${
+                    <span className={`font-bold uppercase tracking-wider block text-xs ${
                       isLight ? 'text-slate-900' : 'text-[#00FF87]'
                     }`}>
                       Tactical Checklist:
                     </span>
                     {section.bulletChecklist.map((item, cIdx) => (
-                      <div key={cIdx} className="flex items-start gap-2">
-                        <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                      <div key={cIdx} className="flex items-start gap-2.5">
+                        <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-1" />
                         <span>{item}</span>
                       </div>
                     ))}
@@ -310,16 +461,16 @@ export default function LearningDashboard({
                 )}
 
                 {section.callout && (
-                  <div className={`p-4 rounded-2xl border flex items-start gap-3 text-xs leading-relaxed ${
+                  <div className={`p-5 rounded-2xl border flex items-start gap-3.5 text-sm sm:text-base leading-relaxed ${
                     section.callout.type === 'warning'
                       ? isLight ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-rose-500/10 border-rose-500/30 text-rose-200'
                       : section.callout.type === 'rule'
                       ? isLight ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
                       : isLight ? 'bg-blue-50 border-blue-300 text-blue-900' : 'bg-blue-500/10 border-blue-500/30 text-blue-200'
                   }`}>
-                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                    <AlertCircle className="w-6 h-6 shrink-0 mt-0.5" />
                     <div>
-                      <strong className="block font-mono font-bold uppercase text-[10px] tracking-wider mb-1">
+                      <strong className="block font-mono font-bold uppercase text-xs tracking-wider mb-1">
                         {section.callout.title}
                       </strong>
                       <p>{section.callout.message}</p>

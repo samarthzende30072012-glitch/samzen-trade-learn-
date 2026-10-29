@@ -15,7 +15,7 @@ import {
   TrendingUp, Slash, Minus, Square, Type, 
   Trash2, Ruler, Maximize2, Minimize2, Crosshair,
   Pencil, Sparkles, SlidersHorizontal, Eye, EyeOff,
-  ChevronDown, X
+  ChevronDown, X, ZoomIn, ZoomOut, RotateCcw, ArrowRightToLine, Plus, Activity
 } from 'lucide-react';
 
 export type ChartTimeframe = '1m' | '5m' | '15m' | '1H' | '1D' | '1W';
@@ -75,6 +75,10 @@ export interface SamzenTerminalChartRef {
   clearAllDrawings: () => { clearedCount: number; clearedTypes: string[] };
   setDrawingTool: (tool: DrawingToolType) => void;
   addQuickHorizontalLevel: (price?: number) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  fitContent: () => void;
+  scrollToRealtime: () => void;
   getChartApi: () => IChartApi | null;
   getSeriesApi: () => ISeriesApi<'Candlestick'> | null;
 }
@@ -502,6 +506,36 @@ export const SamzenTerminalChart = forwardRef<SamzenTerminalChartRef, SamzenTerm
     return { clearedCount, clearedTypes };
   };
 
+  const handleQuickHorizontalLevel = (targetPrice?: number) => {
+    const p = targetPrice || currentPrice;
+    if (candleSeriesRef.current) {
+      try {
+        const line = candleSeriesRef.current.createPriceLine({
+          price: p,
+          color: '#00FF87',
+          lineWidth: 1,
+          lineStyle: 2,
+          axisLabelVisible: true,
+          title: `LEVEL @ ${p}`,
+        });
+        if (line) nativePriceLinesRef.current.push(line);
+      } catch {
+        // ignore
+      }
+    }
+
+    const newDrawing: DrawingItem = {
+      id: `h-${Date.now()}`,
+      type: 'horizontal',
+      color: '#00FF87',
+      points: [{ x: 0, y: 120 }, { x: 500, y: 120 }],
+      priceLevel: p,
+    };
+
+    setDrawings((prev) => [...prev, newDrawing]);
+    sounds.playClick();
+  };
+
   useImperativeHandle(ref, () => ({
     updateTick: (newPrice: number) => {
       if (!candleSeriesRef.current || candlesRef.current.length === 0) return;
@@ -543,37 +577,53 @@ export const SamzenTerminalChart = forwardRef<SamzenTerminalChartRef, SamzenTerm
       sounds.playClick();
     },
     addQuickHorizontalLevel: (targetPrice?: number) => {
-      const p = targetPrice || currentPrice;
-      if (candleSeriesRef.current) {
-        try {
-          const line = candleSeriesRef.current.createPriceLine({
-            price: p,
-            color: '#00FF87',
-            lineWidth: 1,
-            lineStyle: 2,
-            axisLabelVisible: true,
-            title: `LEVEL @ ${p}`,
-          });
-          if (line) nativePriceLinesRef.current.push(line);
-        } catch {
-          // ignore
-        }
-      }
-
-      const newDrawing: DrawingItem = {
-        id: `h-${Date.now()}`,
-        type: 'horizontal',
-        color: '#00FF87',
-        points: [{ x: 0, y: 120 }, { x: 500, y: 120 }],
-        priceLevel: p,
-      };
-
-      setDrawings((prev) => [...prev, newDrawing]);
-      sounds.playClick();
+      handleQuickHorizontalLevel(targetPrice);
     },
+    zoomIn: () => handleZoomIn(),
+    zoomOut: () => handleZoomOut(),
+    fitContent: () => handleFitContent(),
+    scrollToRealtime: () => handleScrollToRealtime(),
     getChartApi: () => chartInstanceRef.current,
     getSeriesApi: () => candleSeriesRef.current,
   }));
+
+  const handleZoomIn = () => {
+    if (!chartInstanceRef.current) return;
+    const ts = chartInstanceRef.current.timeScale();
+    const range = ts.getVisibleLogicalRange();
+    if (range) {
+      const span = range.to - range.from;
+      const delta = Math.max(2, Math.floor(span * 0.25));
+      ts.setVisibleLogicalRange({ from: range.from + delta, to: range.to - delta });
+    }
+    sounds.playClick();
+  };
+
+  const handleZoomOut = () => {
+    if (!chartInstanceRef.current) return;
+    const ts = chartInstanceRef.current.timeScale();
+    const range = ts.getVisibleLogicalRange();
+    if (range) {
+      const span = range.to - range.from;
+      const delta = Math.max(2, Math.floor(span * 0.25));
+      ts.setVisibleLogicalRange({ from: range.from - delta, to: range.to + delta });
+    }
+    sounds.playClick();
+  };
+
+  const handleFitContent = () => {
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.timeScale().fitContent();
+      sounds.playClick();
+    }
+  };
+
+  const handleScrollToRealtime = () => {
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.timeScale().scrollToRealtime();
+      sounds.playClick();
+    }
+  };
 
   // SVG Drawing Handling
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -781,6 +831,74 @@ export const SamzenTerminalChart = forwardRef<SamzenTerminalChartRef, SamzenTerm
             >
               Line
             </button>
+          </div>
+
+          {/* Quick Technical Overlays & Level */}
+          <div className={`hidden sm:flex items-center gap-1 p-0.5 rounded-lg border ${
+            isLight ? 'bg-slate-100 border-slate-200' : 'bg-[#121A28] border-white/5'
+          }`}>
+            <button
+              onClick={() => {
+                setShowEMA20(!showEMA20);
+                sounds.playClick();
+              }}
+              className={`px-2 py-1 rounded text-[10px] font-mono font-bold cursor-pointer transition ${
+                showEMA20
+                  ? (isLight ? 'bg-cyan-600 text-white shadow-xs' : 'bg-cyan-500/25 text-cyan-300 border border-cyan-400/40')
+                  : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white')
+              }`}
+              title="Toggle 20 Exponential Moving Average"
+            >
+              EMA 20
+            </button>
+            <button
+              onClick={() => {
+                setShowEMA50(!showEMA50);
+                sounds.playClick();
+              }}
+              className={`px-2 py-1 rounded text-[10px] font-mono font-bold cursor-pointer transition ${
+                showEMA50
+                  ? (isLight ? 'bg-amber-600 text-white shadow-xs' : 'bg-amber-500/25 text-amber-300 border border-amber-400/40')
+                  : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white')
+              }`}
+              title="Toggle 50 Exponential Moving Average"
+            >
+              EMA 50
+            </button>
+            <button
+              onClick={() => {
+                setShowVolume(!showVolume);
+                sounds.playClick();
+              }}
+              className={`px-2 py-1 rounded text-[10px] font-mono font-bold cursor-pointer transition ${
+                showVolume
+                  ? (isLight ? 'bg-emerald-600 text-white shadow-xs' : 'bg-emerald-500/25 text-emerald-300 border border-emerald-400/40')
+                  : (isLight ? 'text-slate-500 hover:text-slate-900' : 'text-slate-400 hover:text-white')
+              }`}
+              title="Toggle Volume Bars"
+            >
+              Vol
+            </button>
+            <button
+              onClick={() => handleQuickHorizontalLevel()}
+              className={`px-2 py-1 rounded text-[10px] font-mono font-bold cursor-pointer transition flex items-center gap-1 ${
+                isLight ? 'text-slate-700 hover:text-slate-900 hover:bg-slate-200' : 'text-slate-300 hover:text-white hover:bg-white/5'
+              }`}
+              title="Add Support/Resistance level at current price"
+            >
+              <Plus className="w-2.5 h-2.5 text-[#00FF87]" />
+              <span>Level</span>
+            </button>
+            {drawings.length > 0 && (
+              <button
+                onClick={executeClearAllDrawings}
+                className="px-2 py-1 rounded text-[10px] font-mono font-bold cursor-pointer transition flex items-center gap-1 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
+                title="Clear all drawings & price lines"
+              >
+                <Trash2 className="w-2.5 h-2.5" />
+                <span>Clear</span>
+              </button>
+            )}
           </div>
 
           {/* Progressive Disclosure: Drawing Tools Toggle Button */}
@@ -1089,10 +1207,55 @@ export const SamzenTerminalChart = forwardRef<SamzenTerminalChartRef, SamzenTerm
             </div>
           )}
 
+          {/* Floating Zoom & Scale Controls dock on canvas (Easy One-Tap Controls) */}
+          <div className={`absolute bottom-3 right-16 z-20 flex items-center gap-1 p-1 rounded-xl backdrop-blur-md border shadow-xl select-none ${
+            isLight ? 'bg-white/90 border-slate-200 shadow-slate-300/50' : 'bg-[#0E1726]/90 border-white/10 shadow-black/60'
+          }`}>
+            <button
+              onClick={handleZoomIn}
+              className={`p-1.5 rounded-lg transition cursor-pointer ${
+                isLight ? 'text-slate-700 hover:text-slate-950 hover:bg-slate-100' : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+              title="Zoom In (+)"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleZoomOut}
+              className={`p-1.5 rounded-lg transition cursor-pointer ${
+                isLight ? 'text-slate-700 hover:text-slate-950 hover:bg-slate-100' : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+              title="Zoom Out (-)"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <div className={`w-[1px] h-3.5 ${isLight ? 'bg-slate-200' : 'bg-white/10'}`} />
+            <button
+              onClick={handleFitContent}
+              className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold transition flex items-center gap-1 cursor-pointer ${
+                isLight ? 'text-slate-700 hover:text-slate-950 hover:bg-slate-100' : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+              title="Auto-Fit Entire History (Reset View)"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Fit</span>
+            </button>
+            <button
+              onClick={handleScrollToRealtime}
+              className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold transition flex items-center gap-1 cursor-pointer ${
+                isLight ? 'text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50' : 'text-[#00FF87] hover:text-[#00FF87] hover:bg-[#00FF87]/10'
+              }`}
+              title="Snap to Real-Time Candle"
+            >
+              <ArrowRightToLine className="w-3 h-3" />
+              <span>Live</span>
+            </button>
+          </div>
+
           {/* Minimalist Floating Clean Watermark indicator */}
-          <div className="absolute bottom-3 left-4 pointer-events-none select-none z-10 flex items-center gap-2 opacity-30">
+          <div className="absolute bottom-3 left-4 pointer-events-none select-none z-10 flex items-center gap-2 opacity-40">
             <span className="text-[10px] font-mono tracking-widest uppercase font-bold text-slate-400">
-              SAMZEN QUANTUM ENGINE
+              SAMZEN ENGINE • DRAG TO PAN • SCROLL TO ZOOM
             </span>
           </div>
         </div>

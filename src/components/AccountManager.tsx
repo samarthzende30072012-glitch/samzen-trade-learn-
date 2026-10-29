@@ -3,8 +3,15 @@ import { UserProfile, ProTier } from '../types';
 import { 
   User, Crown, ShieldAlert, Sparkles, Send, HelpCircle, 
   MessageSquare, Lightbulb, Wallet, RefreshCw, Landmark, ArrowRight,
-  Globe, CheckCircle, MessageCircle, Bug, LogOut, ShieldCheck
+  Globe, CheckCircle, MessageCircle, Bug, LogOut, ShieldCheck,
+  Mic, MicOff, Volume2, FileText, Trash2, Calendar, Tag, Square
 } from 'lucide-react';
+import { 
+  saveNoteToFirestore, 
+  listNotesFromFirestore, 
+  deleteNoteFromFirestore, 
+  FirestoreTradeNote 
+} from '../services/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface AccountManagerProps {
@@ -29,7 +36,119 @@ export default function AccountManager({
   onChangeCurrency,
   onLogOut
 }: AccountManagerProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'support'>('profile');
+  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'journal' | 'support'>('profile');
+
+  // Voice Journal state
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [transcript, setTranscript] = useState<string>('');
+  const [journalTitle, setJournalTitle] = useState<string>('');
+  const [journalMood, setJournalMood] = useState<string>('Bullish 🟢');
+  const [savedJournals, setSavedJournals] = useState<FirestoreTradeNote[]>([]);
+  const [isLoadingJournals, setIsLoadingJournals] = useState<boolean>(false);
+  const speechRecognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    loadJournals();
+  }, [user.email]);
+
+  const loadJournals = async () => {
+    setIsLoadingJournals(true);
+    try {
+      const notes = await listNotesFromFirestore(user.email);
+      setSavedJournals(notes);
+    } catch (e) {
+      console.warn("Could not load journals:", e);
+    } finally {
+      setIsLoadingJournals(false);
+    }
+  };
+
+  const startVoiceRecording = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.");
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsRecording(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        let final = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            final += event.results[i][0].transcript;
+          }
+        }
+        if (final) {
+          setTranscript(prev => (prev ? prev + ' ' + final : final));
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn("Speech recognition error:", event.error);
+        setIsRecording(false);
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      speechRecognitionRef.current = recognition;
+      recognition.start();
+    } catch (e) {
+      console.error("Failed to start speech recognition:", e);
+      setIsRecording(false);
+      alert("Microphone access failed or was denied. Please check browser permissions.");
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch (e) {}
+    }
+    setIsRecording(false);
+  };
+
+  const handleSaveVoiceJournal = async () => {
+    if (!transcript.trim()) {
+      alert("Please record or type your trading session thoughts first.");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const newNote: FirestoreTradeNote = {
+      id: `voice-journal-${Date.now()}`,
+      userId: user.email,
+      title: journalTitle.trim() || `Trading Session Journal - ${new Date().toLocaleDateString()}`,
+      content: transcript,
+      tags: ['Voice Journal', journalMood],
+      createdAt: now,
+      updatedAt: now
+    };
+
+    await saveNoteToFirestore(user.email, newNote);
+    setSavedJournals(prev => [newNote, ...prev]);
+    setTranscript('');
+    setJournalTitle('');
+    alert("🎙️ Voice Journal successfully transcribed and saved to your Firestore history!");
+  };
+
+  const handleDeleteJournal = async (noteId: string) => {
+    if (confirm("Are you sure you want to delete this journal entry?")) {
+      await deleteNoteFromFirestore(user.email, noteId);
+      setSavedJournals(prev => prev.filter(n => n.id !== noteId));
+    }
+  };
   
   // Balance modifier state
   const [balanceInput, setBalanceInput] = useState<string>('');
@@ -188,20 +307,27 @@ export default function AccountManager({
   return (
     <div className="space-y-6">
       {/* Tab Header Selector */}
-      <div className="flex bg-[#151D2A] p-1 border border-black/10 rounded-xl max-w-md">
+      <div className="flex bg-[#151D2A] p-1 border border-black/10 rounded-xl max-w-xl">
         <button
           onClick={() => setActiveSubTab('profile')}
           className={`flex-1 py-2 text-xs font-bold font-mono tracking-wider uppercase rounded-lg transition-all flex items-center justify-center gap-1.5 ${activeSubTab === 'profile' ? 'bg-[#0F172A] text-white shadow' : 'text-slate-300 hover:text-white'}`}
         >
           <User className="w-3.5 h-3.5" />
-          <span>My Profile & Settings</span>
+          <span>Profile</span>
+        </button>
+        <button
+          onClick={() => setActiveSubTab('journal')}
+          className={`flex-1 py-2 text-xs font-bold font-mono tracking-wider uppercase rounded-lg transition-all flex items-center justify-center gap-1.5 ${activeSubTab === 'journal' ? 'bg-[#0F172A] text-white shadow' : 'text-slate-300 hover:text-white'}`}
+        >
+          <Mic className="w-3.5 h-3.5 text-[#05D59E]" />
+          <span>Voice Journal</span>
         </button>
         <button
           onClick={() => setActiveSubTab('support')}
           className={`flex-1 py-2 text-xs font-bold font-mono tracking-wider uppercase rounded-lg transition-all flex items-center justify-center gap-1.5 ${activeSubTab === 'support' ? 'bg-[#0F172A] text-white shadow' : 'text-slate-300 hover:text-white'}`}
         >
           <Sparkles className="w-3.5 h-3.5 text-[#05D59E]" />
-          <span>AI Coach & Feedback</span>
+          <span>AI Coach</span>
         </button>
       </div>
 
@@ -408,6 +534,172 @@ export default function AccountManager({
                       </p>
                     )}
                   </form>
+                </div>
+              </motion.div>
+            ) : activeSubTab === 'journal' ? (
+              <motion.div
+                key="journal"
+                initial={{ opacity: 0, x: 5 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -5 }}
+                transition={{ duration: 0.15 }}
+                className="space-y-6"
+              >
+                {/* Voice Journal Recorder & Transcriber */}
+                <div className="bg-[#0E1726] border-2 border-black rounded-2xl p-6 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] space-y-5">
+                  <div className="flex items-center justify-between border-b border-black/10 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-[#05D59E]/10 border border-[#05D59E]/30 rounded-xl text-[#05D59E]">
+                        <Mic className="w-6 h-6 animate-pulse" />
+                      </div>
+                      <div>
+                        <h4 className="text-base font-serif font-black text-white">🎙️ Voice Journal & Post-Session Debrief</h4>
+                        <p className="text-xs text-slate-400">Record thoughts via microphone, transcribe into text, and save to Firestore</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {!isRecording ? (
+                        <button
+                          type="button"
+                          onClick={startVoiceRecording}
+                          className="px-4 py-2.5 bg-[#05D59E] hover:bg-[#04bd8b] text-slate-950 font-mono font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2 transition"
+                        >
+                          <Mic className="w-4 h-4" />
+                          <span>Start Recording</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={stopVoiceRecording}
+                          className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-mono font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2 animate-pulse transition"
+                        >
+                          <Square className="w-4 h-4 fill-current" />
+                          <span>Stop Recording</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Recording Status / Waveform animation */}
+                  {isRecording && (
+                    <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 flex items-center gap-3">
+                      <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                      <span className="text-xs font-mono font-bold text-emerald-400">
+                        Listening... Speak clearly about your trades, psychology, and market observations.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Title and Mood Selection */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        Journal Title
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Breakout Review - Nifty 50"
+                        value={journalTitle}
+                        onChange={(e) => setJournalTitle(e.target.value)}
+                        className="w-full bg-[#0E1726] border-2 border-black rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-[#05D59E] font-mono text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        Session Market Mood / Bias
+                      </label>
+                      <select
+                        value={journalMood}
+                        onChange={(e) => setJournalMood(e.target.value)}
+                        className="w-full bg-[#0E1726] border-2 border-black rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-[#05D59E] font-mono text-white cursor-pointer"
+                      >
+                        <option value="Bullish 🟢">Bullish 🟢</option>
+                        <option value="Bearish 🔴">Bearish 🔴</option>
+                        <option value="Neutral ⚪">Neutral ⚪</option>
+                        <option value="Revenge Trading ⚠️">Revenge Trading ⚠️</option>
+                        <option value="Patient 🧘">Patient 🧘</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Live Transcript / Content Textarea */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                      Transcribed Thoughts & Notes (Editable)
+                    </label>
+                    <textarea
+                      rows={6}
+                      placeholder="Your voice transcription will appear here in real-time, or you can type/edit notes directly..."
+                      value={transcript}
+                      onChange={(e) => setTranscript(e.target.value)}
+                      className="w-full bg-[#0E1726] border-2 border-black rounded-xl p-3.5 text-xs focus:outline-none focus:border-[#05D59E] font-sans text-white leading-relaxed resize-y"
+                    />
+                  </div>
+
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveVoiceJournal}
+                      disabled={!transcript.trim()}
+                      className="px-6 py-3 bg-[#0F172A] hover:bg-[#1E293B] text-white font-mono font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_rgba(15,23,42,1)] active:translate-y-0.5 transition flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                      <FileText className="w-4 h-4 text-[#05D59E]" />
+                      <span>Save Voice Journal to Firestore</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Saved Journals History List */}
+                <div className="bg-[#0E1726] border-2 border-black rounded-2xl p-6 shadow-[4px_4px_0px_0px_rgba(15,23,42,1)] space-y-4">
+                  <div className="flex items-center justify-between border-b border-black/10 pb-3">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-[#05D59E]" />
+                      <h4 className="text-sm font-serif font-black text-white">Your Firestore Journal History</h4>
+                    </div>
+                    <span className="text-xs font-mono text-slate-400 font-bold">{savedJournals.length} Entries Saved</span>
+                  </div>
+
+                  {isLoadingJournals ? (
+                    <div className="py-8 text-center text-xs font-mono text-slate-400">Loading journal history from Firestore...</div>
+                  ) : savedJournals.length === 0 ? (
+                    <div className="py-8 text-center text-xs font-mono text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      No voice journals saved yet. Click "Start Recording" above to capture your first session debrief!
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                      {savedJournals.map((journal) => (
+                        <div key={journal.id} className="bg-[#151D2A]/40 border border-black/10 rounded-xl p-4 space-y-2 hover:border-[#05D59E]/40 transition">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-serif font-bold text-white text-sm">{journal.title}</span>
+                              {journal.tags && journal.tags[1] && (
+                                <span className="text-[10px] font-mono bg-[#0E1726] border border-white/10 px-2 py-0.5 rounded text-emerald-400">
+                                  {journal.tags[1]}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-[10px] font-mono text-slate-400">
+                                {new Date(journal.createdAt).toLocaleDateString()} {new Date(journal.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              <button
+                                onClick={() => handleDeleteJournal(journal.id)}
+                                className="text-slate-400 hover:text-rose-400 transition"
+                                title="Delete journal"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-xs text-slate-300 font-sans leading-relaxed whitespace-pre-wrap bg-[#0A0E17]/60 p-3 rounded-lg border border-white/5">
+                            {journal.content}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </motion.div>
             ) : (

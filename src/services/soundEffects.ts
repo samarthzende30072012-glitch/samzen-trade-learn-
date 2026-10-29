@@ -130,6 +130,33 @@ class SoundService {
     osc.start(now);
     osc.stop(now + 0.18);
   }
+
+  /**
+   * Price Alert Chime (melodic attention bell: dual pulse)
+   */
+  public playAlert() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    [0, 0.16].forEach((offset) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(987.77, now + offset); // B5
+      osc.frequency.exponentialRampToValueAtTime(1318.51, now + offset + 0.08); // E6
+
+      gain.gain.setValueAtTime(0.2, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.14);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.14);
+    });
+  }
 }
 
 export const sounds = new SoundService();

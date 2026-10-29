@@ -8,6 +8,9 @@ export interface MasterclassModule {
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced' | 'Mastery';
   badge: string;
   summary: string;
+  illustrationImage?: string;
+  diagramTitle?: string;
+  diagramType?: 'candlestick' | 'support_resistance' | 'risk_matrix' | 'order_block';
   learningObjectives: string[];
   formula?: {
     name: string;
@@ -44,6 +47,9 @@ export const MASTERCLASS_MODULES: MasterclassModule[] = [
     durationMinutes: 25,
     difficulty: 'Beginner',
     badge: 'Foundation Pillar',
+    illustrationImage: '/src/assets/images/samzen_chart_analysis_1793091008638.jpg',
+    diagramTitle: 'Interactive Candlestick Architecture & OHLC Price Mechanics',
+    diagramType: 'candlestick',
     summary: 'A candlestick is not a colorful drawing—it is an audited visual record of institutional supply and demand. Master the 4 price points (OHLC), wick rejection psychology, and high-probability candlestick formations used by institutional desks.',
     learningObjectives: [
       'Understand how electronic exchanges match bids and asks in the Central Limit Order Book (CLOB)',
@@ -147,6 +153,9 @@ export const MASTERCLASS_MODULES: MasterclassModule[] = [
     durationMinutes: 30,
     difficulty: 'Intermediate',
     badge: 'Core Blueprint',
+    illustrationImage: '/src/assets/images/samzen_chart_navy_gold_1793091871578.jpg',
+    diagramTitle: 'Support & Resistance Role Reversal (Polarity) and Liquidity Sweep Setup',
+    diagramType: 'support_resistance',
     summary: 'Retail traders draw lines where prices bounced. Institutional operators identify liquidity pools where pending stop-orders are stacked. Master static horizontal floors, the polarity change principle, trendline validation criteria, and false breakout sweeps.',
     learningObjectives: [
       'Distinguish between retail speculative lines and true institutional liquidity levels',
@@ -247,6 +256,9 @@ export const MASTERCLASS_MODULES: MasterclassModule[] = [
     durationMinutes: 35,
     difficulty: 'Mastery',
     badge: 'Survival Core',
+    illustrationImage: '/src/assets/images/samzen_risk_management_1793091007477.jpg',
+    diagramTitle: 'The Non-Negotiable 1% Risk Formula & Position Sizing Calculator Matrix',
+    diagramType: 'risk_matrix',
     summary: 'The holy grail of trading is not an indicator—it is capital preservation mathematics. Over 90% of retail traders blow up accounts due to position sizing errors and revenge trading. Master the institutional 1% risk formula and asymmetric risk-to-reward ratios.',
     learningObjectives: [
       'Calculate exact position sizing down to the single share using the 1% Capital Risk Formula',
@@ -355,7 +367,10 @@ export const MASTERCLASS_MODULES: MasterclassModule[] = [
     durationMinutes: 40,
     difficulty: 'Mastery',
     badge: 'Mastery Apex',
-    summary: 'Step beyond spot equities into the multi-trillion dollar world of derivatives. Master Options Greeks (Delta, Theta time decay, Gamma), interbank Forex pip calculations, and cryptocurrency funding rates while navigating SEBI and Indian 1% TDS tax regulations.',
+    illustrationImage: '/src/assets/images/sztrade_course_institutional_1793088621049.jpg',
+    diagramTitle: 'Derivatives Greeks Matrix & Multi-Asset Order Flow Structure',
+    diagramType: 'order_block',
+    summary: 'Step beyond spot equities into the multi-trillion dollar world of derivatives. Master Options Greeks (Delta, Theta time decay, Gamma), interbank Forex pip calculations, and cryptocurrency funding rates with institutional risk rules.',
     learningObjectives: [
       'Deconstruct the 4 core Option Greeks: Delta, Gamma, Theta, and Vega',
       'Understand why 80% of out-of-the-money option buyer contracts expire worthless due to Theta decay',

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Topic } from '../types';
 import { 
   BookOpen, CheckCircle, Clock, Copy, Check, Sparkles, 
-  Lightbulb, AlertCircle, ArrowRight, Bookmark, Share2
+  Lightbulb, AlertCircle, ArrowRight, Bookmark, Share2, Bot, Volume2
 } from 'lucide-react';
 
 interface ChapterNotesViewerProps {
@@ -185,8 +185,16 @@ export default function ChapterNotesViewer({
           </p>
         </div>
 
-        {/* Toolbar: Font Size & Copy */}
+        {/* Toolbar: Font Size, AI Explainer, TTS & Copy */}
         <div className="flex items-center justify-between pt-2 border-t border-[#1D2A3E]/60 text-xs text-[#9DB0C8]">
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-[10px] text-[#9DB0C8] uppercase mr-1">Lang:</span>
+            <select className="bg-[#1D2A3E] text-[#9DB0C8] text-[10px] font-mono rounded px-1 py-0.5 cursor-pointer">
+              <option value="en">English</option>
+              <option value="hi">Hindi</option>
+              <option value="es">Spanish</option>
+            </select>
+          </div>
           <div className="flex items-center gap-1.5">
             <span className="font-mono text-[10px] text-[#9DB0C8] uppercase mr-1">Font:</span>
             {(['sm', 'base', 'lg'] as const).map(size => (
@@ -205,23 +213,44 @@ export default function ChapterNotesViewer({
             ))}
           </div>
 
-          <button
-            type="button"
-            onClick={handleCopyNotes}
-            className="flex items-center gap-1.5 px-3 py-1 rounded bg-[#1D2A3E] hover:bg-[#25364F] text-[#EEF3FA] font-mono text-[11px] transition"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400">Copied!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5 text-[#59E3FF]" />
-                <span>Copy Notes</span>
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => {
+                const synth = window.speechSynthesis;
+                synth.cancel();
+                const utterance = new SpeechSynthesisUtterance(`${topic.title}. ${topic.content}`);
+                synth.speak(utterance);
+              }}
+              className="p-1.5 rounded bg-[#1D2A3E] hover:bg-[#25364F] text-[#59E3FF] transition"
+              title="Read notes aloud"
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => alert('Samzen AI is analyzing the notes...')}
+              className="p-1.5 rounded bg-[#1D2A3E] hover:bg-[#25364F] text-[#59E3FF] transition"
+              title="Explain with AI"
+            >
+              <Bot className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyNotes}
+              className="flex items-center gap-1.5 px-3 py-1 rounded bg-[#1D2A3E] hover:bg-[#25364F] text-[#EEF3FA] font-mono text-[11px] transition"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-emerald-400">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-[#59E3FF]" />
+                  <span>Copy</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 

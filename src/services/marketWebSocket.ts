@@ -1,8 +1,10 @@
 /**
  * Real-Time Market WebSocket & Feed Synchronization Service
  * Direct Binance WebSocket integration for live crypto assets + high-fidelity real-time streams
- * for Indian equities (NSE/BSE), US equities, and Forex pairs.
+ * for Indian equities (NSE/BSE), US equities, commodities, and Forex pairs.
  */
+
+import { UNIVERSAL_ASSETS } from '../data/assetsDatabase';
 
 export interface MarketTick {
   symbol: string;
@@ -24,53 +26,21 @@ class MarketWebSocketService {
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private simulatedInterval: ReturnType<typeof setInterval> | null = null;
 
-  // Real-world reference bases
-  private currentPrices: Record<string, number> = {
-    // Crypto
-    'BTC/USD': 67450.0,
-    'ETH/USD': 3520.4,
-    'SOL/USD': 178.6,
-    'BNB/USD': 594.2,
-    'XRP/USD': 0.542,
-    'DOGE/USD': 0.142,
-    // Indian Equities
-    'NIFTY50': 24380.0,
-    'BANKNIFTY': 51240.0,
-    'RELIANCE': 2980.5,
-    'TCS': 3940.0,
-    'HDFCBANK': 1680.2,
-    'INFY': 1865.0,
-    'ICICIBANK': 1245.4,
-    'SBIN': 842.5,
-    'TATAMOTORS': 985.0,
-    'BHARTIARTL': 1420.0,
-    'ITC': 492.5,
-    'TATASTEEL': 162.0,
-    // US Equities
-    'TSLA': 248.8,
-    'AAPL': 228.4,
-    'NVDA': 138.2,
-    'MSFT': 428.5,
-    'AMZN': 186.4,
-    'META': 585.0,
-    'GOOGL': 166.8,
-    // Forex
-    'EUR/USD': 1.0845,
-    'GBP/USD': 1.298,
-    'USD/JPY': 152.4,
-    'USD/INR': 84.15,
-    'AUD/USD': 0.668,
-    'USD/CAD': 1.385,
-    'XAU/USD': 2735.5,
-  };
-
+  // Real-world reference bases populated from universal assets
+  private currentPrices: Record<string, number> = {};
   private dailyStarts: Record<string, number> = {};
+  private currentChanges: Record<string, number> = {};
 
   constructor() {
-    // Initialize day starts
-    Object.keys(this.currentPrices).forEach((k) => {
-      this.dailyStarts[k] = this.currentPrices[k];
+    // Initialize prices from database
+    UNIVERSAL_ASSETS.forEach((asset) => {
+      this.currentPrices[asset.symbol] = asset.price;
+      this.currentChanges[asset.symbol] = asset.change;
+      // Calculate realistic open price based on change percentage
+      const openPrice = asset.price / (1 + asset.change / 100);
+      this.dailyStarts[asset.symbol] = Number(openPrice.toFixed(asset.type === 'forex' ? 4 : 2));
     });
+
     this.connectBinance();
     this.startSimulatedFeeds();
   }
@@ -83,7 +53,7 @@ class MarketWebSocketService {
 
     try {
       this.isConnecting = true;
-      // Combined Binance stream for major pairs
+      // Combined Binance stream for high-volume crypto pairs
       const streams = [
         'btcusdt@trade',
         'ethusdt@trade',
@@ -91,6 +61,10 @@ class MarketWebSocketService {
         'bnbusdt@trade',
         'xrpusdt@trade',
         'dogeusdt@trade',
+        'adausdt@trade',
+        'avaxusdt@trade',
+        'linkusdt@trade',
+        'suiusdt@trade',
       ].join('/');
 
       this.ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
@@ -116,11 +90,16 @@ class MarketWebSocketService {
           else if (streamName.startsWith('bnbusdt')) symbol = 'BNB/USD';
           else if (streamName.startsWith('xrpusdt')) symbol = 'XRP/USD';
           else if (streamName.startsWith('dogeusdt')) symbol = 'DOGE/USD';
+          else if (streamName.startsWith('adausdt')) symbol = 'ADA/USD';
+          else if (streamName.startsWith('avaxusdt')) symbol = 'AVAX/USD';
+          else if (streamName.startsWith('linkusdt')) symbol = 'LINK/USD';
+          else if (streamName.startsWith('suiusdt')) symbol = 'SUI/USD';
 
           if (symbol && !isNaN(rawPrice)) {
             this.currentPrices[symbol] = rawPrice;
             const openPrice = this.dailyStarts[symbol] || rawPrice;
             const change24h = Number((((rawPrice - openPrice) / openPrice) * 100).toFixed(2));
+            this.currentChanges[symbol] = change24h;
 
             const tick: MarketTick = {
               symbol,
@@ -146,12 +125,11 @@ class MarketWebSocketService {
 
       this.ws.onclose = () => {
         this.isConnecting = false;
-        // Reconnect after 3s
         if (!this.reconnectTimeout) {
           this.reconnectTimeout = setTimeout(() => {
             this.reconnectTimeout = null;
             this.connectBinance();
-          }, 3000);
+          }, 4000);
         }
       };
     } catch {
@@ -162,41 +140,55 @@ class MarketWebSocketService {
   private startSimulatedFeeds() {
     if (this.simulatedInterval) clearInterval(this.simulatedInterval);
 
-    // Continuous real-time tick loop for equities & forex
+    // Continuous real-time tick loop for equities, forex, and commodities
     this.simulatedInterval = setInterval(() => {
       const symbols = Object.keys(this.currentPrices);
-      // Pick 2-4 symbols per tick cycle to simulate active order book trades
-      const sampleCount = Math.floor(Math.random() * 3) + 2;
+      // Pick 3-5 symbols per tick cycle
+      const sampleCount = Math.floor(Math.random() * 3) + 3;
       for (let i = 0; i < sampleCount; i++) {
         const idx = Math.floor(Math.random() * symbols.length);
         const symbol = symbols[idx];
 
-        // Crypto is primarily driven by Binance WS, but give slight fallback if WS disconnected
-        if (symbol.includes('/USD') && ['BTC/USD', 'ETH/USD', 'SOL/USD'].includes(symbol) && this.ws?.readyState === WebSocket.OPEN) {
+        // Skip major cryptos if Binance WebSocket is active and streaming
+        if (
+          ['BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD'].includes(symbol) &&
+          this.ws?.readyState === WebSocket.OPEN
+        ) {
           continue;
         }
 
         const oldPrice = this.currentPrices[symbol];
-        const isForex = symbol.includes('/') && !symbol.includes('BTC') && !symbol.includes('ETH') && !symbol.includes('SOL');
-        const isStock = !symbol.includes('/');
+        if (!oldPrice) continue;
 
-        // Volatility multiplier
-        let deltaPercent = (Math.random() - 0.495) * 0.0015;
-        if (isForex) deltaPercent = (Math.random() - 0.498) * 0.0003;
-        if (symbol === 'TSLA' || symbol === 'NVDA') deltaPercent = (Math.random() - 0.49) * 0.0025;
+        const isForex = symbol.includes('/') && !symbol.includes('BTC') && !symbol.includes('ETH');
+        const isCommodity = symbol.startsWith('XAU') || symbol.startsWith('XAG') || symbol.includes('OIL');
+        const isIndex = symbol.includes('NIFTY') || symbol.includes('SENSEX');
 
-        const newPrice = Number((oldPrice * (1 + deltaPercent)).toFixed(isForex ? 4 : 2));
+        // Dynamic market direction simulation:
+        // Reflects real market micro-fluctuations with slight momentum drift
+        const currentChg = this.currentChanges[symbol] ?? 0;
+        // Directional bias: if an asset has negative day change, give it a slight downward tilt to mirror real-world trends
+        const bias = currentChg < 0 ? -0.52 : 0.48;
+        
+        let deltaPercent = (Math.random() - bias) * 0.0012;
+        if (isForex) deltaPercent = (Math.random() - bias) * 0.0002;
+        if (isCommodity) deltaPercent = (Math.random() - bias) * 0.0008;
+        if (isIndex) deltaPercent = (Math.random() - bias) * 0.0004;
+
+        const decimals = isForex ? 4 : (oldPrice < 5 ? 4 : 2);
+        const newPrice = Number((oldPrice * (1 + deltaPercent)).toFixed(decimals));
         this.currentPrices[symbol] = newPrice;
 
         const startPrice = this.dailyStarts[symbol] || newPrice;
         const change24h = Number((((newPrice - startPrice) / startPrice) * 100).toFixed(2));
+        this.currentChanges[symbol] = change24h;
 
         const tick: MarketTick = {
           symbol,
           price: newPrice,
           change24h,
-          high24h: Number((startPrice * 1.018).toFixed(isForex ? 4 : 2)),
-          low24h: Number((startPrice * 0.982).toFixed(isForex ? 4 : 2)),
+          high24h: Number((Math.max(newPrice, startPrice * 1.015)).toFixed(decimals)),
+          low24h: Number((Math.min(newPrice, startPrice * 0.985)).toFixed(decimals)),
           volume24h: Math.floor(Math.random() * 500) + 50,
           timestamp: Date.now(),
           isRealTimeWs: false,
@@ -204,7 +196,7 @@ class MarketWebSocketService {
 
         this.notifyListeners(tick);
       }
-    }, 800);
+    }, 700);
   }
 
   private notifyListeners(tick: MarketTick) {
@@ -226,6 +218,10 @@ class MarketWebSocketService {
 
   public getPrice(symbol: string): number {
     return this.currentPrices[symbol] || 100;
+  }
+
+  public getChange(symbol: string): number {
+    return this.currentChanges[symbol] ?? 0;
   }
 
   public getAllCurrentPrices(): Record<string, number> {
