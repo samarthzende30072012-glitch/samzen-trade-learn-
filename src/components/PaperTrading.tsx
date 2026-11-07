@@ -21,7 +21,7 @@ import {
   X, Zap, Check, ArrowRight, ArrowLeft, ShieldCheck, Flame, 
   ChevronDown, Sun, Moon, Sliders, List, BarChart3, Layers, 
   RotateCcw, AlertTriangle, Briefcase, FileText, Plus, Minus,
-  Bell, BellRing, BellOff
+  Bell, BellRing, BellOff, User
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -30,7 +30,7 @@ import { UNIVERSAL_ASSETS } from '../data/assetsDatabase';
 import TerminalTutorial from './TerminalTutorial';
 import MarketHeatmap from './MarketHeatmap';
 
-export type TerminalPage = 'watchlist' | 'chart' | 'trade' | 'portfolio' | 'history' | 'alerts' | 'heatmap';
+export type TerminalPage = 'watchlist' | 'chart' | 'portfolio' | 'holdings' | 'orders' | 'account' | 'trade' | 'history' | 'alerts' | 'heatmap';
 
 interface PaperTradingProps {
   user: UserProfile;
@@ -42,6 +42,9 @@ interface PaperTradingProps {
   theme?: 'dark' | 'light';
   onToggleTheme?: () => void;
   onOpenSettings?: () => void;
+  initialAsset?: TradingAsset;
+  onNavigateTab?: (tab: 'heatmap' | 'concepts' | 'learning' | 'about') => void;
+  onExportPdf?: () => void;
 }
 
 export default function PaperTrading({ 
@@ -54,16 +57,16 @@ export default function PaperTrading({
   theme = 'dark',
   onToggleTheme,
   onOpenSettings,
+  initialAsset,
+  onNavigateTab,
+  onExportPdf,
 }: PaperTradingProps) {
   const chartRef = useRef<SamzenTerminalChartRef | null>(null);
 
   // Native App-Like Pagination state: 'watchlist' | 'chart' | 'trade' | 'portfolio' | 'history'
   const [activePage, setActivePage] = useState<TerminalPage>('chart');
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('terminal_tutorial_seen'));
-
-  // Touch Swipe Gesture Tracking
-  const touchStartX = useRef<number | null>(null);
-  const touchStartY = useRef<number | null>(null);
+  const [activeUsers, setActiveUsers] = useState<number>(() => marketWS.getActiveUsersCount());
 
   const isLight = theme === 'light';
 
@@ -86,8 +89,15 @@ export default function PaperTrading({
 
   // Assets state
   const [assets, setAssets] = useState<TradingAsset[]>(UNIVERSAL_ASSETS);
-  const [selectedAsset, setSelectedAsset] = useState<TradingAsset>(UNIVERSAL_ASSETS[0]);
+  const [selectedAsset, setSelectedAsset] = useState<TradingAsset>(initialAsset || UNIVERSAL_ASSETS[0]);
   
+  useEffect(() => {
+    if (initialAsset) {
+      setSelectedAsset(initialAsset);
+      setActivePage('chart');
+    }
+  }, [initialAsset]);
+
   // Universal Search
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -303,35 +313,6 @@ export default function PaperTrading({
     return () => unsubscribe();
   }, [selectedAsset.symbol]);
 
-  // Native App Swipe Gestures for Mobile
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null || touchStartY.current === null) return;
-    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
-    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
-
-    // Detect horizontal swipe (> 50px) that is dominant over vertical scrolling
-    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
-      const pages: TerminalPage[] = ['watchlist', 'chart', 'trade', 'portfolio', 'history', 'alerts'];
-      const curIdx = pages.indexOf(activePage);
-      if (deltaX < 0 && curIdx < pages.length - 1) {
-        // Swiped Left -> Advance to next page
-        setActivePage(pages[curIdx + 1]);
-        sounds.playClick();
-      } else if (deltaX > 0 && curIdx > 0) {
-        // Swiped Right -> Return to previous page
-        setActivePage(pages[curIdx - 1]);
-        sounds.playClick();
-      }
-    }
-    touchStartX.current = null;
-    touchStartY.current = null;
-  };
-
   // Price Alert Action Handlers
   const handleOpenAlertModal = (asset?: TradingAsset) => {
     const targetAsset = asset || selectedAsset;
@@ -427,14 +408,19 @@ export default function PaperTrading({
     return true;
   });
 
-  // 1-Click Buy Execution
+  // 1-Click Buy Execution (User-Driven Market Engine Impact)
   const handleOneClickBuy = () => {
     if (!marketStatus.isOpen && orderMode === 'MARKET') {
       setShowClosedMarketModal(true);
       return;
     }
 
-    const price = orderMode === 'LIMIT' && limitPriceInput ? parseFloat(limitPriceInput) : selectedAsset.price;
+    // Dynamic market reaction: user buy order creates upward price pressure
+    const executedPrice = orderMode === 'LIMIT' && limitPriceInput 
+      ? parseFloat(limitPriceInput) 
+      : marketWS.applyUserOrderImpact(selectedAsset.symbol, 'BUY', orderQuantity);
+
+    const price = executedPrice || selectedAsset.price;
     const totalCost = price * orderQuantity;
 
     if (user.demoBalance < totalCost) {
@@ -466,25 +452,48 @@ export default function PaperTrading({
       timestamp: new Date().toISOString(),
     };
 
+    // Update holdings
+    const existingHoldings = [...user.holdings];
+    const holdingIdx = existingHoldings.findIndex(h => h.symbol === selectedAsset.symbol);
+    if (holdingIdx >= 0) {
+      const prev = existingHoldings[holdingIdx];
+      const newQty = prev.quantity + orderQuantity;
+      const newAvg = Number(((prev.quantity * prev.averageEntryPrice + totalCost) / newQty).toFixed(2));
+      existingHoldings[holdingIdx] = { ...prev, quantity: newQty, averageEntryPrice: newAvg };
+    } else {
+      existingHoldings.push({
+        symbol: selectedAsset.symbol,
+        name: selectedAsset.name,
+        quantity: orderQuantity,
+        averageEntryPrice: price
+      });
+    }
+
     onUpdateUser({
       ...user,
       demoBalance: Number((user.demoBalance - totalCost).toFixed(2)),
       positions: [newPosition, ...user.positions],
+      holdings: existingHoldings,
       transactionHistory: [newTx, ...user.transactionHistory],
     });
 
     sounds.playOrderFill(true);
-    setTradeToast({ text: `Bought ${orderQuantity}x ${selectedAsset.symbol} @ ₹${price.toLocaleString()}!` });
+    setTradeToast({ text: `Bought ${orderQuantity}x ${selectedAsset.symbol} @ ₹${price.toLocaleString()}! (Price moved up on buy volume)` });
   };
 
-  // 1-Click Sell / Short Execution
+  // 1-Click Sell / Short Execution (User-Driven Market Engine Impact)
   const handleOneClickSell = () => {
     if (!marketStatus.isOpen && orderMode === 'MARKET') {
       setShowClosedMarketModal(true);
       return;
     }
 
-    const price = orderMode === 'LIMIT' && limitPriceInput ? parseFloat(limitPriceInput) : selectedAsset.price;
+    // Dynamic market reaction: user sell order creates downward price pressure
+    const executedPrice = orderMode === 'LIMIT' && limitPriceInput 
+      ? parseFloat(limitPriceInput) 
+      : marketWS.applyUserOrderImpact(selectedAsset.symbol, 'SELL', orderQuantity);
+
+    const price = executedPrice || selectedAsset.price;
     const totalCost = price * orderQuantity;
     const marginRequired = totalCost * 0.2; // 20% margin
 
@@ -524,7 +533,7 @@ export default function PaperTrading({
     });
 
     sounds.playOrderFill(false);
-    setTradeToast({ text: `Short Sold ${orderQuantity}x ${selectedAsset.symbol} @ ₹${price.toLocaleString()}!` });
+    setTradeToast({ text: `Sold ${orderQuantity}x ${selectedAsset.symbol} @ ₹${price.toLocaleString()}! (Price moved down on sell volume)` });
   };
 
   // 1-Click Close Position
@@ -662,10 +671,8 @@ export default function PaperTrading({
 
   return (
     <div 
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      className={`space-y-4 font-sans select-none min-h-screen transition-colors ${
-        isLight ? 'text-slate-800' : 'text-white'
+      className={`h-full w-full flex flex-col font-sans select-none overflow-hidden transition-colors ${
+        isLight ? 'bg-slate-50 text-slate-800' : 'bg-[#070B14] text-white'
       }`}
     >
       {showTutorial && (
@@ -676,90 +683,180 @@ export default function PaperTrading({
           }}
         />
       )}
-      {/* 1. TOP BROKER APP HEADER WITH DEDICATED EXIT BUTTON */}
-      <header className={`rounded-2xl border p-3 sm:p-4 shadow-xl flex flex-wrap items-center justify-between gap-3 relative z-30 transition-colors ${
-        isLight ? 'bg-white border-slate-200' : 'bg-[#0A0E17] border-white/10'
+
+      {/* CONDENSED ZERODHA KITE / UPSTOX STYLE UNIFIED TOP BAR */}
+      <header className={`shrink-0 border-b px-3 sm:px-4 py-2 flex items-center justify-between gap-2 select-none relative z-30 transition-colors ${
+        isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-[#0A0E17] border-white/10 shadow-md'
       }`}>
-        {/* Left: Dedicated Exit Button & Brand */}
-        <div className="flex items-center gap-3">
+        {/* Left: Clean Back Navigation Button & Brand & Asset Pill */}
+        <div className="flex items-center gap-2 sm:gap-3">
           {onExitTerminal && (
             <button
               type="button"
               onClick={onExitTerminal}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-mono font-bold transition shadow-sm active:scale-95 cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold transition active:scale-95 cursor-pointer ${
                 isLight
-                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-300'
-                  : 'bg-[#151D2A] hover:bg-[#1E293B] text-white border-white/15'
+                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200'
+                  : 'bg-[#151D2A] hover:bg-[#1E293B] text-slate-200 border-white/10'
               }`}
-              title="Exit to Educational Marketing Homepage"
+              title="Return to Academy / Learning Hub"
             >
-              <ArrowLeft className={`w-4 h-4 ${isLight ? 'text-emerald-600' : 'text-[#00FF87]'}`} />
-              <span>Exit Trading Terminal</span>
+              <ArrowLeft className={`w-3.5 h-3.5 ${isLight ? 'text-emerald-600' : 'text-[#00FF87]'}`} />
+              <span className="hidden sm:inline">Back to Academy</span>
+              <span className="sm:hidden">Back</span>
             </button>
           )}
-
-          <div className={`h-6 w-[1px] hidden sm:block ${isLight ? 'bg-slate-200' : 'bg-white/10'}`} />
 
           <div className="flex items-center gap-2">
             <img
               src="/assets/aistudio/Samzen_Neon_Trading_Emblem_c452c366.png"
-              alt="Samzen Neon Trading Emblem"
-              className="w-9 h-9 rounded-xl object-cover shadow-lg border border-white/20"
+              alt="Samzen Emblem"
+              className="w-7 h-7 rounded-lg object-cover border border-white/20"
             />
-            <span className={`font-serif font-bold text-sm tracking-tight hidden sm:inline ${
+            <span className={`font-serif font-bold text-xs sm:text-sm tracking-tight hidden md:inline ${
               isLight ? 'text-slate-900' : 'text-white'
             }`}>
               SAMZEN <span className={`italic ${isLight ? 'text-emerald-600' : 'text-[#00FF87]'}`}>TERMINAL</span>
             </span>
-            <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase hidden md:inline border ${
-              isLight
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                : 'bg-[#00FF87]/10 text-[#00FF87] border-[#00FF87]/20'
-            }`}>
-              Proprietary Quantum Engine
+          </div>
+
+          {/* Quick Active Asset Chip in Header */}
+          <div className={`hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-lg border font-mono text-xs ${
+            isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#121A28] border-white/10'
+          }`}>
+            <span className="font-bold">{selectedAsset.symbol}</span>
+            <span className={`text-[11px] font-bold ${selectedAsset.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+              {selectedAsset.change >= 0 ? `+${selectedAsset.change}%` : `${selectedAsset.change}%`}
             </span>
           </div>
         </div>
 
-        {/* Right: Balance, Theme, Audio & Settings Controls */}
-        <div className="flex items-center gap-2 sm:gap-3 font-mono text-xs">
+        {/* Center: Condensed Feature Tabs (Kite / Upstox Style) */}
+        <nav className="flex items-center gap-1 font-mono text-xs overflow-x-auto scrollbar-none">
+          {[
+            { id: 'chart', label: 'Chart & Trade', icon: TrendingUp },
+            { id: 'watchlist', label: 'Watchlist', icon: List },
+            { id: 'portfolio', label: `Positions (${user.positions.length})`, icon: Wallet },
+            { id: 'orders', label: `Orders (${closedTrades.length + (user.limitOrders?.length || 0)})`, icon: Clock },
+            { id: 'holdings', label: `Holdings (${user.holdings?.length || 0})`, icon: Briefcase },
+            { id: 'heatmap', label: 'Heatmap', icon: BarChart3 },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isSelected = activePage === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setActivePage(tab.id as TerminalPage);
+                  sounds.playClick();
+                }}
+                className={`py-1.5 px-2.5 rounded-lg flex items-center gap-1.5 font-bold text-xs transition cursor-pointer whitespace-nowrap ${
+                  isSelected
+                    ? isLight
+                      ? 'bg-emerald-600 text-white shadow-xs font-black'
+                      : 'bg-[#00FF87] text-[#0A0E17] shadow-xs font-black'
+                    : isLight
+                    ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            );
+          })}
+
+          {/* Quick link to IMO Notes without leaving context */}
+          {onNavigateTab && (
+            <button
+              type="button"
+              onClick={() => onNavigateTab('concepts')}
+              className={`py-1.5 px-2.5 rounded-lg flex items-center gap-1.5 font-bold text-xs transition cursor-pointer whitespace-nowrap hidden lg:flex ${
+                isLight ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+              title="View IMO Institutional Concept Notes & Charts"
+            >
+              <FileText className="w-3.5 h-3.5 text-cyan-400" />
+              <span>IMO Notes</span>
+            </button>
+          )}
+        </nav>
+
+        {/* Right: Engine status, Demo capital, Settings, Theme, Mute */}
+        <div className="flex items-center gap-2 font-mono text-xs">
+          {/* Active User-Driven vs 31-Day Historical Engine Switcher */}
+          <button
+            type="button"
+            onClick={() => {
+              const next = marketWS.toggleUserThreshold();
+              setActiveUsers(next);
+            }}
+            className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold transition cursor-pointer ${
+              activeUsers >= 10
+                ? isLight 
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800' 
+                  : 'bg-[#00FF87]/15 border-[#00FF87]/40 text-[#00FF87]'
+                : isLight 
+                ? 'bg-amber-50 border-amber-300 text-amber-800' 
+                : 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+            }`}
+            title="Click to toggle: >= 10 Users (User-Driven Live Engine) vs < 10 Users (31-Day Historical Data Engine)"
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${activeUsers >= 10 ? 'bg-[#00FF87] animate-pulse' : 'bg-amber-400'}`} />
+            <span>{activeUsers >= 10 ? `10+ Users` : `31d Old`}</span>
+          </button>
+
           {/* Demo Capital */}
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${
             isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#121A28] border-white/10'
           }`}>
-            <Wallet className={`w-3.5 h-3.5 ${isLight ? 'text-emerald-600' : 'text-[#00FF87]'}`} />
-            <span className={`text-[10px] uppercase font-bold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>DEMO:</span>
+            <Wallet className={`w-3 h-3 ${isLight ? 'text-emerald-600' : 'text-[#00FF87]'}`} />
             <span className={`font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{formatCurrency(user.demoBalance, 0)}</span>
             <button
               onClick={() => setIsDepositModalOpen(true)}
-              className={`text-[11px] font-bold hover:underline pl-1 cursor-pointer ${
+              className={`text-[10px] font-bold hover:underline pl-0.5 cursor-pointer ${
                 isLight ? 'text-emerald-600' : 'text-[#00FF87]'
               }`}
             >
-              + Add
+              +Add
             </button>
           </div>
+
+          {/* PDF Export Summary */}
+          {onExportPdf && (
+            <button
+              type="button"
+              onClick={onExportPdf}
+              className={`p-1.5 rounded-lg border transition cursor-pointer hidden xl:flex ${
+                isLight ? 'bg-slate-100 hover:bg-slate-200 text-blue-600 border-slate-200' : 'bg-[#121A28] hover:bg-[#1E293B] text-blue-400 border-white/10'
+              }`}
+              title="Export Formatted Trade Performance PDF"
+            >
+              <FileText className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           {/* Theme Toggle Button */}
           {onToggleTheme && (
             <button
               type="button"
               onClick={onToggleTheme}
-              className={`p-2 rounded-xl border transition cursor-pointer ${
+              className={`p-1.5 rounded-lg border transition cursor-pointer ${
                 isLight 
                   ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200' 
                   : 'bg-[#121A28] hover:bg-[#1E293B] text-amber-400 border-white/10'
               }`}
-              title={isLight ? 'Switch to Dark Mode' : 'Switch to Fresh Light Mode'}
+              title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
             >
-              {isLight ? <Moon className="w-4 h-4 text-slate-700" /> : <Sun className="w-4 h-4 text-amber-400" />}
+              {isLight ? <Moon className="w-3.5 h-3.5 text-slate-700" /> : <Sun className="w-3.5 h-3.5 text-amber-400" />}
             </button>
           )}
 
           {/* Sound Toggle */}
           <button
             onClick={handleToggleMute}
-            className={`p-2 rounded-xl border transition cursor-pointer ${
+            className={`p-1.5 rounded-lg border transition cursor-pointer hidden sm:flex ${
               isMuted
                 ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
                 : isLight
@@ -768,7 +865,7 @@ export default function PaperTrading({
             }`}
             title={isMuted ? 'Unmute Sound' : 'Mute Sound'}
           >
-            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
           </button>
 
           {/* Settings Modal Button */}
@@ -776,66 +873,21 @@ export default function PaperTrading({
             <button
               type="button"
               onClick={onOpenSettings}
-              className={`p-2 rounded-xl border transition cursor-pointer ${
+              className={`p-1.5 rounded-lg border transition cursor-pointer ${
                 isLight 
                   ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200' 
                   : 'bg-[#121A28] hover:bg-[#1E293B] text-slate-300 border-white/10'
               }`}
               title="Platform Settings"
             >
-              <Sliders className="w-4 h-4" />
+              <Sliders className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
       </header>
 
-      {/* 2. NATIVE APP-LIKE TAB PAGINATION & SWIPE NAV BAR */}
-      <nav className={`flex items-center justify-between p-1 rounded-2xl border shadow-lg overflow-x-auto scrollbar-none font-mono text-xs transition-colors ${
-        isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
-      }`}>
-        {[
-          { id: 'watchlist', label: 'Watchlist', icon: List },
-          { id: 'heatmap', label: 'Heatmap', icon: BarChart3 },
-          { id: 'chart', label: 'Interactive Chart', icon: TrendingUp },
-          { id: 'trade', label: '1-Click Execute', icon: Zap },
-          { id: 'portfolio', label: `Portfolio (${user.positions.length})`, icon: Wallet },
-          { id: 'history', label: `Orders (${closedTrades.length})`, icon: Clock },
-          { id: 'alerts', label: `Alerts (${priceAlerts.filter(a => !a.triggered).length})`, icon: Bell },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isSelected = activePage === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => {
-                setActivePage(tab.id as TerminalPage);
-                sounds.playClick();
-              }}
-              className={`flex-1 min-w-[100px] py-2 px-3 rounded-xl flex items-center justify-center gap-2 font-bold text-xs transition-all cursor-pointer ${
-                isSelected
-                  ? isLight
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'bg-[#00FF87] text-[#0A0E17] shadow-[0_0_15px_rgba(0,255,135,0.4)]'
-                  : isLight
-                  ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  : 'text-slate-400 hover:text-white hover:bg-[#121A28]'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* Mobile Swipe Hint */}
-      <div className={`sm:hidden flex items-center justify-between px-2 text-[10px] font-mono ${
-        isLight ? 'text-slate-400' : 'text-slate-500'
-      }`}>
-        <span>⇠ Swipe left/right for tabs</span>
-        <span>Tap tabs to jump</span>
-      </div>
+      {/* Main Scrollable Viewport Pane with Defined Bounds */}
+      <div className="flex-1 overflow-y-auto max-w-full p-2 sm:p-3 space-y-3">
 
       {/* Instant Notification Toast */}
       <AnimatePresence>
@@ -914,23 +966,34 @@ export default function PaperTrading({
               )}
             </div>
 
-            {/* Category Filter Pills */}
+            {/* 3 Segregated Asset Class Sections */}
             <div className="flex items-center gap-2 mt-3 overflow-x-auto scrollbar-none font-mono text-xs">
-              {(['ALL', 'INDIAN', 'US', 'CRYPTO', 'FOREX'] as const).map((cat) => (
+              {[
+                { id: 'INDIAN', label: '🇮🇳 Indian Equities (NSE/BSE)', defaultSymbol: 'NIFTY50' },
+                { id: 'CRYPTO', label: '🪙 24/7 Crypto', defaultSymbol: 'BTC/USD' },
+                { id: 'FOREX', label: '💱 Forex & Commodities', defaultSymbol: 'USD/INR' },
+                { id: 'ALL', label: 'Universal (All Assets)', defaultSymbol: 'NIFTY50' },
+              ].map((cat) => (
                 <button
-                  key={cat}
-                  onClick={() => setCategoryFilter(cat)}
-                  className={`px-3 py-1.5 rounded-xl font-bold uppercase transition text-[11px] cursor-pointer whitespace-nowrap ${
-                    categoryFilter === cat
+                  key={cat.id}
+                  onClick={() => {
+                    setCategoryFilter(cat.id as any);
+                    if (cat.id !== 'ALL' && selectedAsset.type !== (cat.id === 'INDIAN' ? 'stock' : cat.id === 'CRYPTO' ? 'crypto' : 'forex')) {
+                      const match = assets.find(a => a.symbol === cat.defaultSymbol) || assets.find(a => cat.id === 'INDIAN' ? a.type === 'stock' : cat.id === 'CRYPTO' ? a.type === 'crypto' : a.type === 'forex');
+                      if (match) setSelectedAsset(match);
+                    }
+                  }}
+                  className={`px-3.5 py-2 rounded-xl font-bold uppercase transition text-xs cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    categoryFilter === cat.id
                       ? isLight
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-[#00FF87] text-[#0A0E17]'
+                        ? 'bg-emerald-600 text-white shadow-md'
+                        : 'bg-[#00FF87] text-[#0A0E17] font-black shadow-[0_0_15px_rgba(0,255,135,0.3)]'
                       : isLight
-                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                      : 'bg-[#151D2A] text-slate-300 hover:text-white'
+                      ? 'bg-white border border-slate-200 hover:bg-slate-100 text-slate-700'
+                      : 'bg-[#151D2A] border border-white/10 text-slate-300 hover:text-white hover:bg-[#1E293B]'
                   }`}
                 >
-                  {cat === 'INDIAN' ? '🇮🇳 NSE/BSE' : cat === 'US' ? '🇺🇸 US Equities' : cat === 'CRYPTO' ? '🪙 24/7 Crypto' : cat === 'FOREX' ? '💱 Forex & Gold' : 'Universal (All)'}
+                  <span>{cat.label}</span>
                 </button>
               ))}
             </div>
@@ -1089,6 +1152,43 @@ export default function PaperTrading({
 
         return (
           <div className="space-y-3 animate-in fade-in duration-150">
+            {/* Quick 3 Asset Class Switcher */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none select-none font-mono text-xs">
+              <span className={`text-[11px] font-bold uppercase tracking-wider shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                SECTOR:
+              </span>
+              {[
+                { label: '🇮🇳 Indian Equities', symbol: 'NIFTY 50' },
+                { label: '🪙 24/7 Crypto', symbol: 'BTC/USD' },
+                { label: '💱 Forex & Gold', symbol: 'USD/INR' },
+              ].map(sec => {
+                const isSecActive = (sec.symbol === 'NIFTY 50' && (selectedAsset.exchange === 'NSE' || selectedAsset.exchange === 'BSE')) ||
+                  (sec.symbol === 'BTC/USD' && selectedAsset.type === 'crypto') ||
+                  (sec.symbol === 'USD/INR' && selectedAsset.type === 'forex');
+                return (
+                  <button
+                    key={sec.label}
+                    onClick={() => {
+                      const match = assets.find(a => a.symbol === sec.symbol) || assets.find(a => a.symbol.includes(sec.symbol));
+                      if (match) setSelectedAsset(match);
+                      sounds.playClick();
+                    }}
+                    className={`px-3 py-1 rounded-xl border font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                      isSecActive
+                        ? isLight
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                          : 'bg-[#00FF87] text-[#0A0E17] border-[#00FF87] shadow-[0_0_10px_rgba(0,255,135,0.3)]'
+                        : isLight
+                        ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                        : 'bg-[#151D2A] hover:bg-[#1E293B] text-slate-300 border-white/10'
+                    }`}
+                  >
+                    <span>{sec.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
             {/* Quick 1-Tap Asset Selector Carousel */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none select-none">
               <span className={`text-[11px] font-mono font-bold uppercase tracking-wider shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -1707,82 +1807,115 @@ export default function PaperTrading({
 
       {/* PAGE 4: PORTFOLIO & ACTIVE POSITIONS */}
       {activePage === 'portfolio' && (
-        <div className="space-y-4 animate-in fade-in duration-150 font-mono">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className={`p-4 rounded-2xl border transition-colors ${
+        <div className="space-y-6 animate-in fade-in duration-150 font-mono">
+          {/* Summary Dashboard Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className={`p-5 rounded-3xl border shadow-xl transition-colors ${
               isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
             }`}>
-              <span className={`text-[11px] block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>DEMO CAPITAL</span>
-              <span className={`text-xl font-black block mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>DEMO CAPITAL</span>
+                <Wallet className="w-4 h-4 text-emerald-400" />
+              </div>
+              <span className={`text-2xl font-black block ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {formatCurrency(user.demoBalance, 0)}
               </span>
+              <span className="text-[10px] text-slate-400 mt-1 block">Available Virtual Margin</span>
             </div>
 
-            <div className={`p-4 rounded-2xl border transition-colors ${
+            <div className={`p-5 rounded-3xl border shadow-xl transition-colors ${
               isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
             }`}>
-              <span className={`text-[11px] block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>ACTIVE POSITIONS</span>
-              <span className={`text-xl font-black block mt-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                {user.positions.length} Open
+              <div className="flex items-center justify-between mb-2">
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>OPEN POSITIONS</span>
+                <Briefcase className="w-4 h-4 text-sky-400" />
+              </div>
+              <span className={`text-2xl font-black block ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                {user.positions.length} Active
               </span>
+              <span className="text-[10px] text-slate-400 mt-1 block">Live Order Book</span>
             </div>
 
-            <div className={`p-4 rounded-2xl border transition-colors ${
+            <div className={`p-5 rounded-3xl border shadow-xl transition-colors ${
               isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
             }`}>
-              <span className={`text-[11px] block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>UNREALIZED LIVE P&L</span>
-              <span className={`text-xl font-black block mt-1 ${
+              <div className="flex items-center justify-between mb-2">
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>UNREALIZED P&L</span>
+                <TrendingUp className={`w-4 h-4 ${totalUnrealizedPnL >= 0 ? 'text-emerald-400' : 'text-rose-400'}`} />
+              </div>
+              <span className={`text-2xl font-black block ${
                 totalUnrealizedPnL >= 0 
                   ? isLight ? 'text-emerald-600' : 'text-[#00FF87]' 
                   : isLight ? 'text-rose-600' : 'text-[#FF3366]'
               }`}>
                 {totalUnrealizedPnL >= 0 ? '+' : ''}₹{totalUnrealizedPnL.toFixed(2)}
               </span>
+              <span className="text-[10px] text-slate-400 mt-1 block">Mark-to-Market Valuation</span>
             </div>
 
-            <div className={`p-4 rounded-2xl border flex items-center justify-between gap-2 transition-colors ${
+            <div className={`p-5 rounded-3xl border shadow-xl flex flex-col justify-between transition-colors ${
               isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
             }`}>
               <div>
-                <span className={`text-[11px] block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>CAPITAL CONTROLS</span>
-                <span className="text-xs font-bold block mt-1">Reset / Refill</span>
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>CAPITAL CONTROLS</span>
+                <span className="text-xs font-bold block mt-1 text-white">Reset Sandbox Capital</span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsDepositModalOpen(true)}
-                className={`px-3 py-1.5 rounded-xl font-bold text-xs cursor-pointer ${
-                  isLight ? 'bg-emerald-600 text-white' : 'bg-[#00FF87] text-[#0A0E17]'
-                }`}
+                className="w-full py-2.5 rounded-xl bg-[#00FF87] hover:bg-[#00e577] text-[#0A0E17] font-black text-xs transition cursor-pointer shadow-lg"
               >
-                Manage
+                + Add / Manage Funds
               </button>
             </div>
           </div>
 
-          {/* Open Positions Table */}
-          <div className={`rounded-3xl border shadow-xl overflow-hidden transition-colors ${
+          {/* Open Positions Vertical List & Grid Dashboard */}
+          <div className={`rounded-3xl border shadow-2xl overflow-hidden transition-colors ${
             isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
           }`}>
-            <div className={`p-4 border-b flex items-center justify-between ${
+            <div className={`p-5 border-b flex items-center justify-between ${
               isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#0A0E17] border-white/10'
             }`}>
-              <div className="flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-emerald-500" />
-                <h3 className="font-bold text-sm">Open Positions ({user.positions.length})</h3>
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <Briefcase className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-white">Active Open Positions Dashboard</h3>
+                  <p className="text-xs text-slate-400">Structured real-time overview of all active trades and live mark-to-market P&L.</p>
+                </div>
               </div>
-              <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                1-Click Close Available
+              <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-slate-300 font-bold">
+                {user.positions.length} Active Trades
               </span>
             </div>
 
-            <div className="p-4 overflow-x-auto">
+            <div className="p-6">
               {user.positions.length === 0 ? (
-                <div className={`text-center py-10 text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  No open positions currently. Go to <button onClick={() => setActivePage('trade')} className="text-emerald-500 font-bold underline">1-Click Trade</button> or <button onClick={() => setActivePage('watchlist')} className="text-emerald-500 font-bold underline">Watchlist</button> to place an order.
+                <div className={`text-center py-16 space-y-3 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  <Briefcase className="w-12 h-12 text-slate-600 mx-auto" />
+                  <h4 className="text-base font-bold text-white">No Open Positions</h4>
+                  <p className="text-xs max-w-md mx-auto">
+                    Your portfolio is currently liquid. Head over to the Live Chart or Watchlist to execute your next paper trade.
+                  </p>
+                  <div className="pt-2 flex justify-center gap-3">
+                    <button
+                      onClick={() => setActivePage('chart')}
+                      className="px-4 py-2.5 rounded-xl bg-[#00FF87] text-[#0A0E17] font-bold text-xs cursor-pointer"
+                    >
+                      Open Live Chart
+                    </button>
+                    <button
+                      onClick={() => setActivePage('watchlist')}
+                      className="px-4 py-2.5 rounded-xl bg-white/10 text-white font-bold text-xs cursor-pointer"
+                    >
+                      Browse Watchlist
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {user.positions.map((pos, idx) => {
                     const curPrice = marketWS.getPrice(pos.assetSymbol) || pos.entryPrice;
                     const pnl = pos.type === 'BUY'
@@ -1794,58 +1927,60 @@ export default function PaperTrading({
                     return (
                       <div
                         key={pos.id || idx}
-                        className={`border rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 transition ${
-                          isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#121A28] border-white/5'
+                        className={`p-5 rounded-3xl border flex flex-col justify-between space-y-4 transition-all shadow-lg ${
+                          isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#121A28] border-white/10 hover:border-white/20'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <span
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${
-                              pos.type === 'BUY'
-                                ? isLight ? 'bg-emerald-100 text-emerald-800' : 'bg-[#00FF87]/20 text-[#00FF87]'
-                                : isLight ? 'bg-rose-100 text-rose-800' : 'bg-[#FF3366]/20 text-[#FF3366]'
-                            }`}
-                          >
-                            {pos.type}
-                          </span>
-                          <div>
-                            <span className={`font-bold text-base ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                              {pos.assetSymbol}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span
+                              className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider ${
+                                pos.type === 'BUY'
+                                  ? isLight ? 'bg-emerald-100 text-emerald-800' : 'bg-[#00FF87]/20 text-[#00FF87] border border-[#00FF87]/30'
+                                  : isLight ? 'bg-rose-100 text-rose-800' : 'bg-[#FF3366]/20 text-[#FF3366] border border-[#FF3366]/30'
+                              }`}
+                            >
+                              {pos.type}
                             </span>
-                            <span className={`text-[11px] block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                              {pos.quantity} units @ ₹{pos.entryPrice}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-6">
-                          <div>
-                            <span className={`text-[10px] block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                              CURRENT PRICE
-                            </span>
-                            <span className={`font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                              ₹{curPrice.toLocaleString()}
-                            </span>
+                            <div>
+                              <h4 className="font-bold text-base text-white">{pos.assetSymbol}</h4>
+                              <span className="text-xs text-slate-400">{pos.assetName}</span>
+                            </div>
                           </div>
 
                           <div className="text-right">
-                            <span className={`text-[10px] block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                              LIVE P&L
-                            </span>
-                            <span className={`text-base font-black ${
-                              isProfit 
-                                ? isLight ? 'text-emerald-600' : 'text-[#00FF87]' 
-                                : isLight ? 'text-rose-600' : 'text-[#FF3366]'
-                            }`}>
+                            <span className="text-xs text-slate-400 block">Quantity</span>
+                            <span className="text-sm font-bold text-white">{pos.quantity} Units</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 p-3 rounded-2xl bg-black/40 border border-white/5 text-xs">
+                          <div>
+                            <span className="text-slate-400 text-[10px] block">ENTRY PRICE</span>
+                            <span className="font-bold text-white">₹{pos.entryPrice.toLocaleString()}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 text-[10px] block">MARKET CMP</span>
+                            <span className="font-bold text-white">₹{curPrice.toLocaleString()}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-slate-400 text-[10px] block">INVESTED</span>
+                            <span className="font-bold text-white">₹{(pos.entryPrice * pos.quantity).toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                          <div>
+                            <span className="text-[10px] text-slate-400 block uppercase">Unrealized P&L</span>
+                            <span className={`text-base font-black ${isProfit ? 'text-[#00FF87]' : 'text-[#FF3366]'}`}>
                               {isProfit ? '+' : ''}₹{pnl.toFixed(2)} ({isProfit ? '+' : ''}{returnPct}%)
                             </span>
                           </div>
 
-                          {/* 1-Click Close Position */}
                           <button
                             type="button"
                             onClick={() => handleClosePosition(pos)}
-                            className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold transition active:scale-95 cursor-pointer shadow-sm"
+                            className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold transition active:scale-95 cursor-pointer shadow-lg shadow-rose-500/20"
                           >
                             Close Position
                           </button>
@@ -1860,8 +1995,162 @@ export default function PaperTrading({
         </div>
       )}
 
-      {/* PAGE 5: ORDER AUDIT & TRADE HISTORY */}
-      {activePage === 'history' && (
+      {/* BROKER TAB 4: HOLDINGS */}
+      {activePage === 'holdings' && (() => {
+        const buyPositions = user.positions.filter(p => p.type === 'BUY');
+        const totalInvested = buyPositions.reduce((acc, p) => acc + (p.entryPrice * p.quantity), 0);
+        const totalCurrentVal = buyPositions.reduce((acc, p) => {
+          const curP = marketWS.getPrice(p.assetSymbol) || p.entryPrice;
+          return acc + (curP * p.quantity);
+        }, 0);
+        const totalPnl = totalCurrentVal - totalInvested;
+        const totalPnlPct = totalInvested > 0 ? Number(((totalPnl / totalInvested) * 100).toFixed(2)) : 0;
+
+        return (
+          <div className="space-y-6 animate-in fade-in duration-150 font-mono">
+            {/* Holdings Summary Header */}
+            <div className={`p-6 rounded-3xl border shadow-2xl transition-colors ${
+              isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
+            }`}>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                  <span className="text-xs uppercase font-bold text-slate-400 block">Total Portfolio Holdings Valuation</span>
+                  <div className="flex items-baseline gap-3 mt-1">
+                    <span className="text-3xl sm:text-4xl font-black text-white">
+                      ₹{Math.round(totalCurrentVal).toLocaleString()}
+                    </span>
+                    <span className={`text-sm font-black px-2.5 py-1 rounded-xl border ${
+                      totalPnl >= 0 ? 'bg-emerald-500/20 text-[#00FF87] border-emerald-500/30' : 'bg-rose-500/20 text-[#FF3366] border-rose-500/30'
+                    }`}>
+                      {totalPnl >= 0 ? '+' : ''}₹{Math.round(totalPnl).toLocaleString()} ({totalPnlPct >= 0 ? '+' : ''}{totalPnlPct}%)
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-black/40 border border-white/10 text-xs">
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase">Total Cost Invested</span>
+                    <span className="font-bold text-white text-base">₹{Math.round(totalInvested).toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase">Active Asset Holdings</span>
+                    <span className="font-bold text-white text-base">{buyPositions.length} Instruments</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Holdings Grid Dashboard */}
+            <div className={`rounded-3xl border shadow-2xl overflow-hidden transition-colors ${
+              isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
+            }`}>
+              <div className={`p-5 border-b flex items-center justify-between ${
+                isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#0A0E17] border-white/10'
+              }`}>
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                    <Briefcase className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-white">Long-Term Asset Holdings Dashboard</h3>
+                    <p className="text-xs text-slate-400">Structured vertical grid overview of all equity, crypto, and forex long holdings.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6">
+                {buyPositions.length === 0 ? (
+                  <div className={`text-center py-16 space-y-3 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    <Briefcase className="w-12 h-12 text-slate-600 mx-auto" />
+                    <h4 className="text-base font-bold text-white">No Long Holdings</h4>
+                    <p className="text-xs max-w-md mx-auto">
+                      You do not currently hold any long asset positions. Buy stocks, crypto, or forex instruments from the live terminal to populate your holdings dashboard.
+                    </p>
+                    <button
+                      onClick={() => setActivePage('chart')}
+                      className="mt-2 px-5 py-2.5 rounded-xl bg-[#00FF87] text-[#0A0E17] font-bold text-xs uppercase cursor-pointer shadow-lg"
+                    >
+                      Go to Live Chart to Buy
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {buyPositions.map((pos) => {
+                      const curPrice = marketWS.getPrice(pos.assetSymbol) || pos.entryPrice;
+                      const invested = pos.entryPrice * pos.quantity;
+                      const curVal = curPrice * pos.quantity;
+                      const pnl = curVal - invested;
+                      const pnlPct = Number(((pnl / invested) * 100).toFixed(2));
+                      const isProfit = pnl >= 0;
+
+                      return (
+                        <div
+                          key={pos.id || pos.timestamp}
+                          className={`p-5 rounded-3xl border flex flex-col justify-between space-y-4 shadow-lg transition ${
+                            isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#121A28] border-white/10 hover:border-white/20'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-black text-emerald-400">
+                                {pos.assetSymbol.slice(0, 3)}
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-base text-white">{pos.assetSymbol}</h4>
+                                <span className="text-xs text-slate-400">{pos.assetName}</span>
+                              </div>
+                            </div>
+
+                            <span className="px-3 py-1 rounded-xl bg-emerald-500/20 text-[#00FF87] border border-emerald-500/30 text-xs font-black">
+                              {pos.quantity} Qty
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2 p-3 rounded-2xl bg-black/40 border border-white/5 text-xs">
+                            <div>
+                              <span className="text-slate-400 text-[10px] block">AVG PRICE</span>
+                              <span className="font-bold text-white">₹{pos.entryPrice}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 text-[10px] block">CMP</span>
+                              <span className="font-bold text-white">₹{curPrice}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-slate-400 text-[10px] block">INVESTED</span>
+                              <span className="font-bold text-white">₹{Math.round(invested).toLocaleString()}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                            <div>
+                              <span className="text-[10px] text-slate-400 block uppercase">Current Value & P&L</span>
+                              <span className="text-sm font-bold text-white">₹{Math.round(curVal).toLocaleString()}</span>
+                              <span className={`text-xs font-black block ${isProfit ? 'text-[#00FF87]' : 'text-[#FF3366]'}`}>
+                                {isProfit ? '+' : ''}₹{pnl.toFixed(2)} ({isProfit ? '+' : ''}{pnlPct}%)
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleClosePosition(pos)}
+                              className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold transition active:scale-95 cursor-pointer shadow-lg shadow-rose-500/20"
+                            >
+                              Square Off
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* BROKER TAB 5: ORDERS (Audit Ledger & Limit Orders) */}
+      {(activePage === 'orders' || activePage === 'history') && (
         <div className="space-y-4 animate-in fade-in duration-150 font-mono">
           <div className={`rounded-3xl border shadow-xl overflow-hidden transition-colors ${
             isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
@@ -1871,17 +2160,17 @@ export default function PaperTrading({
             }`}>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-emerald-500" />
-                <h3 className="font-bold text-sm">Execution Ledger ({closedTrades.length} Trades Closed)</h3>
+                <h3 className="font-bold text-sm">Broker Order Book ({closedTrades.length} Completed)</h3>
               </div>
               <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                100% Audit Trail
+                100% Audit Trail • Real-Time Order Fills
               </span>
             </div>
 
             <div className="p-4">
               {closedTrades.length === 0 ? (
                 <div className={`text-center py-10 text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  No completed trades yet. Close open positions from the Portfolio tab to review audit history here.
+                  No completed orders yet. Place and close orders in Live Chart or Portfolio to review audit history here.
                 </div>
               ) : (
                 <div className="space-y-2.5">
@@ -1905,7 +2194,7 @@ export default function PaperTrading({
                         <div>
                           <span className={`font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{t.symbol}</span>
                           <span className={`text-[10px] block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                            {t.quantity} units • Exit @ ₹{t.exitPrice} • {new Date(t.timestamp).toLocaleTimeString()}
+                            {t.quantity} units • Entry: ₹{t.entryPrice} ➔ Exit: ₹{t.exitPrice} • {new Date(t.timestamp).toLocaleTimeString()}
                           </span>
                         </div>
                       </div>
@@ -1927,6 +2216,157 @@ export default function PaperTrading({
           </div>
         </div>
       )}
+
+      {/* BROKER TAB 6: ACCOUNT & CAPITAL CONTROLS */}
+      {activePage === 'account' && (() => {
+        const usedMargin = user.positions.reduce((acc, p) => acc + (p.entryPrice * p.quantity * 0.2), 0);
+        const winTrades = closedTrades.filter(t => t.pnl > 0).length;
+        const totalTradesCount = closedTrades.length;
+        const winRate = totalTradesCount > 0 ? Math.round((winTrades / totalTradesCount) * 100) : 0;
+        const totalRealizedPnl = closedTrades.reduce((acc, t) => acc + t.pnl, 0);
+
+        return (
+          <div className="space-y-4 animate-in fade-in duration-150 font-mono">
+            {/* Account Profile & Access Code Card */}
+            <div className={`p-6 rounded-3xl border shadow-xl transition-colors ${
+              isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
+            }`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-[#00FF87]/10 border border-[#00FF87]/30 text-[#00FF87] flex items-center justify-center font-bold text-lg">
+                    {(user.username || user.name || 'T')[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                      <span>{user.username || user.name || 'Trader'}</span>
+                      {user.proTier ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-[#00FF87] border border-emerald-500/30">
+                          {user.isTrial ? '2-DAY FREE TRIAL' : 'PRO TRADER'}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                          FREE TIER
+                        </span>
+                      )}
+                    </h3>
+                    <span className="text-xs text-slate-400">{user.email}</span>
+                  </div>
+                </div>
+
+                <div className="text-left sm:text-right">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Your 8-Digit Access Code:</span>
+                  <span className="text-base font-bold text-[#00FF87] tracking-widest bg-[#0A0E17] px-3 py-1 rounded-xl border border-white/10 inline-block mt-1">
+                    {user.accessCode || localStorage.getItem('samzen_access_key') || '84920183'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Capital & Margin Balances */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+                <div className="p-4 rounded-2xl bg-[#0A0E17] border border-white/10">
+                  <span className="text-[10px] text-slate-400 block uppercase">Virtual Cash Balance</span>
+                  <span className="text-2xl font-bold text-white block mt-1">
+                    ₹{Math.round(user.demoBalance).toLocaleString()}
+                  </span>
+                  <span className="text-[10px] text-emerald-400 mt-1 block">Virtual ₹10,00,000 Sandbox</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-[#0A0E17] border border-white/10">
+                  <span className="text-[10px] text-slate-400 block uppercase">Used Margin</span>
+                  <span className="text-2xl font-bold text-amber-400 block mt-1">
+                    ₹{Math.round(usedMargin).toLocaleString()}
+                  </span>
+                  <span className="text-[10px] text-slate-400 mt-1 block">In {user.positions.length} active positions</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-[#0A0E17] border border-white/10">
+                  <span className="text-[10px] text-slate-400 block uppercase">Available Margin</span>
+                  <span className="text-2xl font-bold text-[#00FF87] block mt-1">
+                    ₹{Math.round(user.demoBalance).toLocaleString()}
+                  </span>
+                  <span className="text-[10px] text-slate-400 mt-1 block">Ready for 1-Click Orders</span>
+                </div>
+              </div>
+
+              {/* Reset Capital & Action Controls */}
+              <div className="pt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 mt-5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onUpdateUser({
+                      ...user,
+                      demoBalance: 1000000,
+                    });
+                    setTradeToast({ text: 'Virtual cash balance reset to ₹10,00,000!' });
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition cursor-pointer flex items-center gap-2 border border-white/10"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset Balance to ₹10,00,000</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onGoProClick}
+                    className="px-4 py-2.5 rounded-xl bg-[#00FF87] hover:bg-[#00e577] text-[#0A0E17] text-xs font-bold transition cursor-pointer shadow-lg shadow-emerald-500/20"
+                  >
+                    Upgrade / Manage Pro Plan
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Trading Performance & Market Maker Bot Status Card */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className={`p-5 rounded-3xl border shadow-xl ${
+                isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
+              }`}>
+                <h4 className="font-bold text-sm text-white mb-3 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-emerald-400" />
+                  Trading Performance Analytics
+                </h4>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 rounded-xl bg-[#0A0E17] border border-white/5">
+                    <span className="text-[10px] text-slate-400 block">WIN RATE</span>
+                    <span className="text-xl font-bold text-emerald-400">{winRate}%</span>
+                    <span className="text-[10px] text-slate-500">{winTrades} / {totalTradesCount} Profitable</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-[#0A0E17] border border-white/5">
+                    <span className="text-[10px] text-slate-400 block">TOTAL REALIZED P&L</span>
+                    <span className={`text-xl font-bold ${totalRealizedPnl >= 0 ? 'text-[#00FF87]' : 'text-[#FF3366]'}`}>
+                      {totalRealizedPnl >= 0 ? '+' : ''}₹{Math.round(totalRealizedPnl).toLocaleString()}
+                    </span>
+                    <span className="text-[10px] text-slate-500">Across {totalTradesCount} Closed Trades</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`p-5 rounded-3xl border shadow-xl ${
+                isLight ? 'bg-white border-slate-200' : 'bg-[#0E1726] border-white/10'
+              }`}>
+                <h4 className="font-bold text-sm text-white mb-2 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping" />
+                  Automated Market Maker Bot
+                </h4>
+                <div className="p-3.5 rounded-2xl bg-[#0A0E17] border border-indigo-500/20 text-xs space-y-2">
+                  <div className="flex items-center justify-between text-indigo-400">
+                    <span>Engine Status:</span>
+                    <strong className="text-white">Active (Volumetric Wave Model)</strong>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-400">
+                    <span>Current Active Users:</span>
+                    <strong className="text-[#00FF87]">{marketWS.getActiveUsersCount()} Users (&lt; 50 Trigger)</strong>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed font-sans pt-1">
+                    When active platform participants are under 50, our Automated Market Maker Bot automatically provides realistic market volatility, bid/ask spreads, and mean-reversion pullbacks rather than static numbers.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* PAGE 6: PRICE ALERTS & BROWSER NOTIFICATIONS */}
       {activePage === 'alerts' && (() => {
@@ -2523,6 +2963,29 @@ export default function PaperTrading({
           </div>
         </div>
       )}
+
+      </div>
+
+      {/* DEFINED BOUNDARY STATUS BAR (ZERODHA KITE / UPSTOX FOOTER) */}
+      <footer className={`shrink-0 border-t px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono select-none ${
+        isLight ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-[#080C14] border-white/5 text-slate-400'
+      }`}>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full ${marketStatus.isOpen ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+            <span>{selectedAsset.exchange}: {marketStatus.isOpen ? 'Market Open' : 'Market Closed'}</span>
+          </div>
+          <span className="opacity-40 hidden sm:inline">•</span>
+          <span className="hidden sm:inline">Engine: {activeUsers >= 10 ? 'User-Driven Live Stream' : '31-Day Historical Quotes'}</span>
+          <span className="opacity-40 hidden md:inline">•</span>
+          <span className="hidden md:inline">Data: Free Binance / Yahoo Public APIs</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span>Total P&L: <strong className={totalUnrealizedPnL >= 0 ? 'text-emerald-500' : 'text-rose-500'}>{totalUnrealizedPnL >= 0 ? '+' : ''}{formatCurrency(totalUnrealizedPnL, 2)}</strong></span>
+          <span className="opacity-40 hidden sm:inline">•</span>
+          <span className="hidden sm:inline">100% Risk-Free Simulation Sandbox</span>
+        </div>
+      </footer>
 
       {/* Weekend Closure / Market Closed Modal */}
       <AnimatePresence>

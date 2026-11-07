@@ -11,6 +11,7 @@ import {
   ISeriesApi
 } from 'lightweight-charts';
 import { sounds } from '../services/soundEffects';
+import { generateRealisticSeededCandles } from '../services/historicalDataService';
 import { 
   TrendingUp, Slash, Minus, Square, Type, 
   Trash2, Ruler, Maximize2, Minimize2, Crosshair,
@@ -220,50 +221,9 @@ export const TradingViewChart = forwardRef<TradingViewChartRef, TradingViewChart
     return result;
   };
 
-  // Generate realistic historical candle data
+  // Generate realistic historical candle data with distinct seed and continuous natural price
   const generateHistory = (basePrice: number, tf: ChartTimeframe): CandleData[] => {
-    const count = 120;
-    const result: CandleData[] = [];
-    const nowSec = Math.floor(Date.now() / 1000);
-
-    let tfSec = 60;
-    if (tf === '5m') tfSec = 300;
-    else if (tf === '15m') tfSec = 900;
-    else if (tf === '1H') tfSec = 3600;
-    else if (tf === '1D') tfSec = 86400;
-    else if (tf === '1W') tfSec = 604800;
-
-    let volatility = 0.002;
-    if (tf === '1m') volatility = 0.0006;
-    if (tf === '5m') volatility = 0.0012;
-    if (tf === '15m') volatility = 0.002;
-    if (tf === '1H') volatility = 0.004;
-    if (tf === '1D') volatility = 0.012;
-    if (tf === '1W') volatility = 0.025;
-
-    let price = basePrice * (1 - count * volatility * 0.25);
-    for (let i = 0; i < count; i++) {
-      const time = (nowSec - (count - i) * tfSec) as UTCTimestamp;
-      const change = (Math.sin(i * 0.4) * 0.6 + (Math.random() - 0.48)) * volatility * price;
-      const open = price;
-      const close = Number((open + change).toFixed(displayDecimals));
-      const high = Number((Math.max(open, close) + Math.random() * volatility * price * 0.8).toFixed(displayDecimals));
-      const low = Number((Math.min(open, close) - Math.random() * volatility * price * 0.8).toFixed(displayDecimals));
-      const volume = Math.floor(Math.random() * 5000 + 500);
-
-      result.push({ time, open, high, low, close, volume });
-      price = close;
-    }
-
-    // Anchor last candle close to current price
-    if (result.length > 0) {
-      const last = result[result.length - 1];
-      last.close = currentPrice;
-      last.high = Math.max(last.high, currentPrice);
-      last.low = Math.min(last.low, currentPrice);
-    }
-
-    return result;
+    return generateRealisticSeededCandles(symbol, tf, basePrice, 0, 100);
   };
 
   // Initialize and mount Lightweight Chart

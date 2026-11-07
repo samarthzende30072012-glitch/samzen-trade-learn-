@@ -11,11 +11,16 @@ import {
   ISeriesApi
 } from 'lightweight-charts';
 import { sounds } from '../services/soundEffects';
+import { marketWS } from '../services/marketWebSocket';
+import { 
+  fetchHistoricalCandles, 
+  generateRealisticSeededCandles 
+} from '../services/historicalDataService';
 import { 
   TrendingUp, Slash, Minus, Square, Type, 
   Trash2, Ruler, Maximize2, Minimize2, Crosshair,
   Pencil, Sparkles, SlidersHorizontal, Eye, EyeOff,
-  ChevronDown, X, ZoomIn, ZoomOut, RotateCcw, ArrowRightToLine, Plus, Activity
+  ChevronDown, X, ZoomIn, ZoomOut, RotateCcw, ArrowRightToLine, Plus, Activity, Database
 } from 'lucide-react';
 
 export type ChartTimeframe = '1m' | '5m' | '15m' | '1H' | '1D' | '1W';
@@ -222,49 +227,7 @@ export const SamzenTerminalChart = forwardRef<SamzenTerminalChartRef, SamzenTerm
     return result;
   };
 
-  const generateHistory = (basePrice: number, tf: ChartTimeframe): CandleData[] => {
-    const count = 100;
-    const result: CandleData[] = [];
-    const nowSec = Math.floor(Date.now() / 1000);
-
-    let tfSec = 60;
-    if (tf === '5m') tfSec = 300;
-    else if (tf === '15m') tfSec = 900;
-    else if (tf === '1H') tfSec = 3600;
-    else if (tf === '1D') tfSec = 86400;
-    else if (tf === '1W') tfSec = 604800;
-
-    let volatility = 0.002;
-    if (tf === '1m') volatility = 0.0006;
-    if (tf === '5m') volatility = 0.0012;
-    if (tf === '15m') volatility = 0.002;
-    if (tf === '1H') volatility = 0.004;
-    if (tf === '1D') volatility = 0.012;
-    if (tf === '1W') volatility = 0.025;
-
-    let price = basePrice * (1 - count * volatility * 0.25);
-    for (let i = 0; i < count; i++) {
-      const time = (nowSec - (count - i) * tfSec) as UTCTimestamp;
-      const change = (Math.sin(i * 0.4) * 0.6 + (Math.random() - 0.48)) * volatility * price;
-      const open = price;
-      const close = Number((open + change).toFixed(displayDecimals));
-      const high = Number((Math.max(open, close) + Math.random() * volatility * price * 0.8).toFixed(displayDecimals));
-      const low = Number((Math.min(open, close) - Math.random() * volatility * price * 0.8).toFixed(displayDecimals));
-      const volume = Math.floor(Math.random() * 5000 + 500);
-
-      result.push({ time, open, high, low, close, volume });
-      price = close;
-    }
-
-    if (result.length > 0) {
-      const last = result[result.length - 1];
-      last.close = currentPrice;
-      last.high = Math.max(last.high, currentPrice);
-      last.low = Math.min(last.low, currentPrice);
-    }
-
-    return result;
-  };
+  const [dataSourceTag, setDataSourceTag] = useState<string>('30d Historical');
 
   // Mount Chart
   useEffect(() => {
@@ -363,7 +326,8 @@ export const SamzenTerminalChart = forwardRef<SamzenTerminalChartRef, SamzenTerm
     });
     ema50SeriesRef.current = ema50;
 
-    const initialCandles = generateHistory(currentPrice, timeframe);
+    const is31DayMode = marketWS.is31DayHistoricalMode();
+    const initialCandles = generateRealisticSeededCandles(symbol, timeframe, currentPrice, is31DayMode ? 31 : 0);
     candlesRef.current = initialCandles;
 
     candleSeries.setData(initialCandles);
@@ -379,6 +343,28 @@ export const SamzenTerminalChart = forwardRef<SamzenTerminalChartRef, SamzenTerm
 
     if (showEMA20) ema20.setData(calculateEMA(initialCandles, 20));
     if (showEMA50) ema50.setData(calculateEMA(initialCandles, 50));
+
+    let isSubscribed = true;
+    fetchHistoricalCandles(symbol, timeframe, currentPrice, is31DayMode ? 31 : 0).then((res) => {
+      if (!isSubscribed || !candleSeriesRef.current || res.candles.length === 0) return;
+      candlesRef.current = res.candles;
+      candleSeriesRef.current.setData(res.candles);
+      if (lineSeriesRef.current) {
+        lineSeriesRef.current.setData(res.candles.map((c) => ({ time: c.time, value: c.close })));
+      }
+      if (volumeSeriesRef.current) {
+        volumeSeriesRef.current.setData(
+          res.candles.map((c) => ({
+            time: c.time,
+            value: c.volume || 1000,
+            color: c.close >= c.open ? 'rgba(0, 255, 135, 0.25)' : 'rgba(255, 51, 102, 0.25)',
+          }))
+        );
+      }
+      if (showEMA20 && ema20SeriesRef.current) ema20SeriesRef.current.setData(calculateEMA(res.candles, 20));
+      if (showEMA50 && ema50SeriesRef.current) ema50SeriesRef.current.setData(calculateEMA(res.candles, 50));
+      setDataSourceTag(res.source.replace(/_/g, ' '));
+    });
 
     // OHLC Hover
     chart.subscribeCrosshairMove((param) => {
@@ -416,6 +402,7 @@ export const SamzenTerminalChart = forwardRef<SamzenTerminalChartRef, SamzenTerm
     handleResize();
 
     return () => {
+      isSubscribed = false;
       window.removeEventListener('resize', handleResize);
       chart.remove();
       chartInstanceRef.current = null;
@@ -620,7 +607,14 @@ export const SamzenTerminalChart = forwardRef<SamzenTerminalChartRef, SamzenTerm
 
   const handleScrollToRealtime = () => {
     if (chartInstanceRef.current) {
-      chartInstanceRef.current.timeScale().scrollToRealtime();
+      const ts = chartInstanceRef.current.timeScale() as any;
+      if (typeof ts.scrollToRealTime === 'function') {
+        ts.scrollToRealTime();
+      } else if (typeof ts.scrollToRealtime === 'function') {
+        ts.scrollToRealtime();
+      } else if (typeof ts.scrollToPosition === 'function') {
+        ts.scrollToPosition(0, false);
+      }
       sounds.playClick();
     }
   };
@@ -772,6 +766,25 @@ export const SamzenTerminalChart = forwardRef<SamzenTerminalChartRef, SamzenTerm
             <span className="text-[10px] font-bold" style={{ color: isMarketOpen ? (isLight ? '#059669' : '#00FF87') : (isLight ? '#E11D48' : '#FF3366') }}>
               {isMarketOpen ? 'LIVE' : 'CLOSED'}
             </span>
+          </div>
+
+          {/* User-driven vs 31-day historical engine badge */}
+          <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10px] font-mono font-bold ${
+            marketWS.isUserBasedEngineActive()
+              ? isLight ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-[#00FF87]/15 border-[#00FF87]/40 text-[#00FF87]'
+              : isLight ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+          }`}
+          title={marketWS.isUserBasedEngineActive() ? 'User-Based Live Engine: >= 10 Active Platform Traders' : '31-Day Historical Engine: < 10 Platform Traders (All Sectors Pegged 31 Days Ago)'}>
+            <span>{marketWS.isUserBasedEngineActive() ? '⚡ User-Driven (>= 10 Users)' : '📅 31-Day Historical (< 10 Users)'}</span>
+          </div>
+
+          {/* Real Free Historical Data Source Tag */}
+          <div className={`hidden xl:flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-mono font-bold ${
+            isLight ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-[#121A28] border-white/10 text-cyan-400'
+          }`}
+          title="Free 30-Day Historical Source with 24h local caching">
+            <Database className="w-2.5 h-2.5 text-cyan-400 shrink-0" />
+            <span className="capitalize">{dataSourceTag}</span>
           </div>
         </div>
 

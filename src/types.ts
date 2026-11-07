@@ -101,9 +101,11 @@ export interface PortfolioHolding {
 
 export interface UserProfile {
   email: string;
+  username?: string;
+  accessCode?: string; // 8-digit unique code
   name?: string;
   avatarUrl?: string;
-  authProvider?: 'google' | 'email_otp' | 'phone_otp' | 'password';
+  authProvider?: 'google' | 'email_otp' | 'phone_otp' | 'password' | 'access_code';
   phoneNumber?: string;
   joinedAt: string; // ISO String
   proTier: ProTier | null;
@@ -121,6 +123,16 @@ export interface UserProfile {
   knowledgeLevel?: 'beginner' | 'intermediate' | 'advanced';
   learningGoal?: string;
   isPersonalizedSet?: boolean;
+  isTrial?: boolean;
+  trialExpiresAt?: string | null;
+  deviceFingerprint?: string;
+  isDeactivated?: boolean;
+  isAdmin?: boolean;
+  mobileNumber?: string;
+  deviceName?: string;
+  gmailAddress?: string;
+  invoice?: DigitalInvoice;
+  subscriptionAmountPaid?: number;
   transactionHistory: {
     id: string;
     type: 'DEPOSIT' | 'BUY' | 'SELL';
@@ -131,3 +143,65 @@ export interface UserProfile {
     timestamp: string;
   }[];
 }
+
+export interface DigitalInvoice {
+  invoiceId: string;
+  transactionId: string;
+  username: string;
+  email: string;
+  mobileNumber: string;
+  deviceName: string;
+  deviceFingerprint?: string;
+  planName: string;
+  proTier: ProTier;
+  amount: number;
+  currency: string;
+  timestamp: string;
+  expiresAt: string;
+  accessCode: string;
+  status: 'PAID' | 'REFUNDED' | 'DISPUTED';
+  qrPayload: string;
+  signature?: string;
+}
+
+export interface AdminUserRecord {
+  id: string;
+  username: string;
+  email: string;
+  mobileNumber?: string;
+  deviceName?: string;
+  gmailAddress?: string;
+  accessCode: string;
+  password?: string;
+  joinedAt: string;
+  proTier: ProTier | null;
+  proExpiresAt: string | null;
+  isTrial: boolean;
+  trialExpiresAt: string | null;
+  deviceFingerprint?: string;
+  status: 'active_trial' | 'active_pro' | 'expired' | 'banned' | 'deactivated';
+  subscriptionDays: number;
+  amountPaid: number;
+  demoBalance: number;
+  lastActive: string;
+  invoice?: DigitalInvoice;
+}
+
+export interface MailboxItem {
+  id: string;
+  type: 'feedback' | 'refund' | 'support' | 'bug';
+  userId?: string;
+  username?: string;
+  userEmail?: string;
+  mobileNumber?: string;
+  invoiceId?: string;
+  qrPayload?: string;
+  paymentTimestamp?: string;
+  isEligibleForRefund?: boolean;
+  subject?: string;
+  message: string;
+  createdAt: string;
+  status: 'new' | 'reviewed' | 'resolved';
+  adminNotes?: string;
+}
+

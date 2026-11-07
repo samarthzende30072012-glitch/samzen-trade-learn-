@@ -34,17 +34,20 @@ html[data-theme='light'], .light-theme {
   --app-subtle: #F1F5F9;
 }
 
-/* Base resets */
-html, body {
+/* Base resets & rigidity fixes */
+html, body, #root {
   background-color: var(--app-bg);
   color: var(--app-text);
   font-family: var(--font-sans);
-  overflow-x: hidden;
+  overflow-x: hidden !important;
+  max-width: 100vw;
+  width: 100%;
   margin: 0;
   padding: 0;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.2s ease, color 0.2s ease;
+  touch-action: manipulation;
 }
 
 h1, h2, h3, h4, h5, h6 {

@@ -203,7 +203,7 @@ export default function LegalPolicies({ initialPolicy = 'risk', isOpen, onClose 
                     <strong>Course Access & Subscriptions:</strong> Registration provides non-transferable individual access to SZTrade Learn courses, paper trading sandbox tools, and community integrations. Unlocked subscriptions (such as Go Pro Lifetime access at ₹799) grant lifetime access to the educational syllabus and ad-free sandbox tools.
                   </p>
                   <p>
-                    <strong>Payments & Refunds:</strong> All payments processed through authorized gateways are subject to standard digital product terms. Standard refund requests can be requested within 7 days of initial purchase if less than 20% of premium content has been consumed. [Confirmation Placeholder: Contact support at support@samzentradingcourse.com for specific account queries].
+                    <strong>Strict 48-Hour Refund Policy:</strong> Refunds can only be requested within 48 hours of the original payment timestamp. Presentation of the original digital tax invoice with its cryptographic QR verification code is strictly mandatory. Our automated accounting engine verifies the exact transaction timestamp upon submission; any request initiated more than 48 hours following payment is permanently disqualified from refund eligibility.
                   </p>
                   <p>
                     <strong>User Conduct:</strong> Account sharing, automated scraping, content re-distribution, or commercial resale of SZTrade Learn materials is strictly prohibited.

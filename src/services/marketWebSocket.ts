@@ -5,6 +5,7 @@
  */
 
 import { UNIVERSAL_ASSETS } from '../data/assetsDatabase';
+import { getAssetMarketStatus } from './marketHours';
 
 export interface MarketTick {
   symbol: string;
@@ -137,14 +138,34 @@ class MarketWebSocketService {
     }
   }
 
+  // Market Maker Bot & User-Driven Simulation State (Strict 10 User Threshold)
+  // If active users >= 10: Website runs user-based live execution engine everywhere.
+  // If active users < 10: All trading data across every sector switches to realistic 31-day prior historical data.
+  private activeUsersCount: number = (() => {
+    try {
+      const saved = localStorage.getItem('samzen_active_users_count');
+      return saved ? parseInt(saved, 10) : 12;
+    } catch {
+      return 12;
+    }
+  })();
+  private mmWaveCycle: number = 0;
+
   private startSimulatedFeeds() {
     if (this.simulatedInterval) clearInterval(this.simulatedInterval);
 
-    // Continuous real-time tick loop for equities, forex, and commodities
+    // Continuous real-time tick loop for equities, forex, commodities, and MM Bot
     this.simulatedInterval = setInterval(() => {
+      // If active users on platform < 10: Disable random volatility bot completely.
+      // Website runs 31-day prior historical baseline data across all sectors without fabricating live ticks.
+      if (this.activeUsersCount < 10) {
+        return;
+      }
+
       const symbols = Object.keys(this.currentPrices);
-      // Pick 3-5 symbols per tick cycle
       const sampleCount = Math.floor(Math.random() * 3) + 3;
+      this.mmWaveCycle += 0.15;
+
       for (let i = 0; i < sampleCount; i++) {
         const idx = Math.floor(Math.random() * symbols.length);
         const symbol = symbols[idx];
@@ -161,19 +182,19 @@ class MarketWebSocketService {
         if (!oldPrice) continue;
 
         const isForex = symbol.includes('/') && !symbol.includes('BTC') && !symbol.includes('ETH');
-        const isCommodity = symbol.startsWith('XAU') || symbol.startsWith('XAG') || symbol.includes('OIL');
-        const isIndex = symbol.includes('NIFTY') || symbol.includes('SENSEX');
+        const assetType = isForex ? 'forex' : (symbol.includes('BTC') || symbol.includes('ETH') || symbol.includes('SOL') || symbol.includes('BNB') || symbol.includes('XRP') || symbol.includes('DOGE') || symbol.includes('ADA') || symbol.includes('AVAX') || symbol.includes('LINK') || symbol.includes('SUI') ? 'crypto' : 'stock');
 
-        // Dynamic market direction simulation:
-        // Reflects real market micro-fluctuations with slight momentum drift
-        const currentChg = this.currentChanges[symbol] ?? 0;
-        // Directional bias: if an asset has negative day change, give it a slight downward tilt to mirror real-world trends
-        const bias = currentChg < 0 ? -0.52 : 0.48;
-        
-        let deltaPercent = (Math.random() - bias) * 0.0012;
-        if (isForex) deltaPercent = (Math.random() - bias) * 0.0002;
-        if (isCommodity) deltaPercent = (Math.random() - bias) * 0.0008;
-        if (isIndex) deltaPercent = (Math.random() - bias) * 0.0004;
+        // Respect actual regional market hours. Freeze live movement when market is closed.
+        const marketStatus = getAssetMarketStatus(assetType, symbol);
+        if (!marketStatus.isOpen) {
+          continue; // Market is closed - do not fabricate live ticks or price movement
+        }
+
+        // Active users >= 10: User-driven execution with organic institutional order flow
+        const wave = Math.sin(this.mmWaveCycle + (idx * 1.3)) * 0.0004;
+        const noise = (Math.random() - 0.5) * 0.0006;
+        let deltaPercent = wave + noise;
+        if (isForex) deltaPercent = (wave + noise) * 0.25;
 
         const decimals = isForex ? 4 : (oldPrice < 5 ? 4 : 2);
         const newPrice = Number((oldPrice * (1 + deltaPercent)).toFixed(decimals));
@@ -196,7 +217,78 @@ class MarketWebSocketService {
 
         this.notifyListeners(tick);
       }
-    }, 700);
+    }, 650);
+  }
+
+  /**
+   * User-Driven Order Execution Impact:
+   * When a user executes a virtual BUY or SELL order, the price action dynamically reacts
+   * in real time, ticking up on BUY or down on SELL based on supply and demand volume.
+   */
+  public applyUserOrderImpact(symbol: string, type: 'BUY' | 'SELL', quantity: number): number {
+    const oldPrice = this.currentPrices[symbol];
+    if (!oldPrice) return 100;
+
+    const isForex = symbol.includes('/') && !symbol.includes('BTC') && !symbol.includes('ETH');
+    // Calculate realistic volume slippage impact
+    const baseImpact = Math.min(Math.max(quantity * 0.00008, 0.00015), 0.004);
+    const direction = type === 'BUY' ? 1 : -1;
+    const priceChange = oldPrice * baseImpact * direction;
+
+    const decimals = isForex ? 4 : (oldPrice < 5 ? 4 : 2);
+    const newPrice = Number((oldPrice + priceChange).toFixed(decimals));
+    this.currentPrices[symbol] = newPrice;
+
+    const startPrice = this.dailyStarts[symbol] || newPrice;
+    const change24h = Number((((newPrice - startPrice) / startPrice) * 100).toFixed(2));
+    this.currentChanges[symbol] = change24h;
+
+    const tick: MarketTick = {
+      symbol,
+      price: newPrice,
+      change24h,
+      high24h: Number(Math.max(newPrice, startPrice * 1.015).toFixed(decimals)),
+      low24h: Number(Math.min(newPrice, startPrice * 0.985).toFixed(decimals)),
+      volume24h: quantity * 10,
+      timestamp: Date.now(),
+      isRealTimeWs: false,
+    };
+
+    // Immediately propagate the tick so the chart reacts instantaneously
+    this.notifyListeners(tick);
+    console.log(`[USER MARKET IMPACT] ${type} ${quantity}x ${symbol} shifted price from ₹${oldPrice} to ₹${newPrice}`);
+    return newPrice;
+  }
+
+  public getActiveUsersCount(): number {
+    return this.activeUsersCount;
+  }
+
+  public setActiveUsersCount(count: number): void {
+    this.activeUsersCount = Math.max(0, count);
+    try {
+      localStorage.setItem('samzen_active_users_count', String(this.activeUsersCount));
+    } catch {
+      // ignore
+    }
+  }
+
+  public isUserBasedEngineActive(): boolean {
+    return this.activeUsersCount >= 10;
+  }
+
+  public is31DayHistoricalMode(): boolean {
+    return this.activeUsersCount < 10;
+  }
+
+  public toggleUserThreshold(): number {
+    const next = this.activeUsersCount >= 10 ? 7 : 14;
+    this.setActiveUsersCount(next);
+    return next;
+  }
+
+  public isMarketMakerBotActive(): boolean {
+    return this.activeUsersCount < 10;
   }
 
   private notifyListeners(tick: MarketTick) {
@@ -230,3 +322,4 @@ class MarketWebSocketService {
 }
 
 export const marketWS = new MarketWebSocketService();
+

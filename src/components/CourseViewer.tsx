@@ -9,7 +9,6 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import QuizSection from './QuizSection';
 import AdBanner from './AdBanner';
-import RoboticVideoPlayer from './RoboticVideoPlayer';
 import ChapterNotesViewer from './ChapterNotesViewer';
 
 interface CourseViewerProps {
@@ -1405,47 +1404,14 @@ export default function CourseViewer({
                   </div>
                 </div>
 
-                {/* Option to Choose View Mode */}
-                <div className="space-y-2">
-                  <span className="text-[9px] font-mono font-black text-slate-400 uppercase tracking-wider block">
-                    Choose View Mode (Click to Open Directly):
-                  </span>
-                  <div className="grid grid-cols-2 border-2 border-white/10 rounded overflow-hidden bg-[#151D2A] p-1 gap-1">
-                    <button
-                      onClick={() => setActiveTopicView('video')}
-                      className={`py-2.5 text-xs font-mono font-bold uppercase rounded transition-all flex items-center justify-center gap-2 ${activeTopicView === 'video' ? 'bg-[#05D59E] text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'text-white/70 hover:text-white hover:bg-black/5'}`}
-                    >
-                      📺 Dynamic Video Player
-                    </button>
-                    <button
-                      onClick={() => setActiveTopicView('notes')}
-                      className={`py-2.5 text-xs font-mono font-bold uppercase rounded transition-all flex items-center justify-center gap-2 ${activeTopicView === 'notes' ? 'bg-[#0F172A] text-white shadow-[2px_2px_0px_0px_rgba(15,23,42,0.15)]' : 'text-white/70 hover:text-white hover:bg-black/5'}`}
-                    >
-                      📝 Study Notes & Diagrams
-                    </button>
-                  </div>
+                {/* Direct Educational Notes & Visuals (Audio & Diagrams Only, No Videos) */}
+                <div className="pt-2">
+                  <ChapterNotesViewer 
+                    topic={activeTopic} 
+                    isCompleted={user.progress.includes(activeTopic.id)}
+                    onCompleteChapter={() => handleQuizComplete(100)}
+                  />
                 </div>
-
-                {/* Simulated Robotic AI Video */}
-                {activeTopicView === 'video' && (
-                  <div className="space-y-3">
-                    <span className="text-[10px] font-mono font-bold text-[#05D59E] uppercase tracking-wider block">
-                      🎙️ AI Vocal Lecture ({activeTopic.videoDuration || "15:00"} Minutes)
-                    </span>
-                    <RoboticVideoPlayer topic={activeTopic} />
-                  </div>
-                )}
-
-                {/* Educational Body & Notes */}
-                {activeTopicView === 'notes' && (
-                  <div className="pt-2">
-                    <ChapterNotesViewer 
-                      topic={activeTopic} 
-                      isCompleted={user.progress.includes(activeTopic.id)}
-                      onCompleteChapter={() => handleQuizComplete(100)}
-                    />
-                  </div>
-                )}
 
                     {/* Next Lesson / Course Progression Navigation block */}
                     {(() => {
@@ -1566,19 +1532,25 @@ export default function CourseViewer({
 
             <div className="p-6 md:p-8 overflow-y-auto space-y-6 flex-1">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Left side: Video visualization */}
+                {/* Left side: Lesson Highlights */}
                 <div className="lg:col-span-5 space-y-4">
-                  <div className="bg-slate-50 border-2 border-white/10 p-4 rounded-xl">
-                    <span className="text-[10px] font-mono font-bold text-[#05D59E] uppercase tracking-wider block mb-2">
-                      🎙️ Lecture Vocal Audio Monitor
+                  <div className="bg-[#0A0E17] border-2 border-emerald-500/30 p-5 rounded-2xl space-y-3">
+                    <span className="text-[10px] font-mono font-bold text-[#00FF87] uppercase tracking-wider block">
+                      🎧 Interactive Audio & Study Terminal
                     </span>
-                    <RoboticVideoPlayer topic={activeTopic} />
+                    <h4 className="text-base font-serif font-bold text-white">{activeTopic.title}</h4>
+                    <p className="text-xs text-slate-300 leading-relaxed font-sans">{activeTopic.description}</p>
+                    <div className="pt-2">
+                      <span className="text-[10px] font-mono text-[#00FF87] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+                        Institutional SMC Curriculum
+                      </span>
+                    </div>
                   </div>
                   
-                  <div className="bg-[#05D59E]/5 border border-[#05D59E]/25 p-4 rounded-xl text-xs space-y-2">
-                    <h5 className="font-bold text-white uppercase font-mono tracking-wider">💡 Fullscreen Guide:</h5>
-                    <p className="text-white/70 leading-relaxed font-sans">
-                      Study the masterclass lecture on the left or scroll through detailed professional-grade study notes and dynamic diagram structures on the right. Expand your trading mindset systematically.
+                  <div className="bg-emerald-500/5 border border-emerald-500/25 p-4 rounded-xl text-xs space-y-2">
+                    <h5 className="font-bold text-white uppercase font-mono tracking-wider">💡 Fullscreen Study Guide:</h5>
+                    <p className="text-slate-300 leading-relaxed font-sans">
+                      Study the structured notes and dynamic diagram posters below. Use the built-in Text-To-Speech audio player to listen hands-free while reviewing chart setups.
                     </p>
                   </div>
                 </div>
